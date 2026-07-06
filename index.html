@@ -694,30 +694,48 @@ $("#railToggle").onclick = e=>{ e.stopPropagation(); $("#view-map").classList.ad
 $("#railBackdrop").onclick = ()=> $("#view-map").classList.remove("rail-open");
 
 // Pinch-to-zoom on touch devices: track two pointers on the stage.
+// Scale is computed ABSOLUTELY from the gesture's start (not incrementally per
+// event) — incremental updates compound finger jitter into visible jumpiness.
+// The view also follows the midpoint, so two fingers can pan while zooming.
 const ptrs = new Map();
 let pinch = null;
+function pinchState(){
+  const [a,b]=[...ptrs.values()];
+  const r = stage.getBoundingClientRect();
+  return { x:(a.x+b.x)/2 - r.left, y:(a.y+b.y)/2 - r.top, d:Math.hypot(a.x-b.x, a.y-b.y) };
+}
 stage.addEventListener("pointerdown", e=>{
   ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY});
   if(ptrs.size===2){
     // second finger down: stop any drag/pan and start pinching
     dragId=null; pan=null; $$(".node.dragging").forEach(el=>el.classList.remove("dragging"));
-    const [a,b]=[...ptrs.values()];
-    pinch = { d: Math.hypot(a.x-b.x, a.y-b.y) };
+    const m = pinchState();
+    pinch = { d0:(m.d||1), s0:view.scale, mx0:m.x, my0:m.y, panX0:view.panX, panY0:view.panY };
   }
 }, true); // capture: runs even when a finger lands on a node (which stops bubbling)
 window.addEventListener("pointermove", e=>{
   if(!ptrs.has(e.pointerId)) return;
   ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY});
   if(pinch && ptrs.size===2){
-    const [a,b]=[...ptrs.values()];
-    const d = Math.hypot(a.x-b.x, a.y-b.y);
-    const r = stage.getBoundingClientRect();
-    if(pinch.d>0 && d>0) zoomAt((a.x+b.x)/2 - r.left, (a.y+b.y)/2 - r.top, d/pinch.d);
-    pinch.d = d;
+    const m = pinchState();
+    const s = clamp(pinch.s0 * (m.d/pinch.d0), .3, 3);
+    // keep the world point that was under the start-midpoint pinned to the
+    // current midpoint — zoom and two-finger pan in one stable mapping
+    const wx = (pinch.mx0 - pinch.panX0)/pinch.s0;
+    const wy = (pinch.my0 - pinch.panY0)/pinch.s0;
+    view.scale = s; view.panX = m.x - wx*s; view.panY = m.y - wy*s;
+    applyView();
   }
 });
 window.addEventListener("pointerup", e=>{ ptrs.delete(e.pointerId); if(ptrs.size<2) pinch=null; });
 window.addEventListener("pointercancel", e=>{ ptrs.delete(e.pointerId); if(ptrs.size<2) pinch=null; dragId=null; pan=null; });
+
+// iOS Safari can run its own native page-pinch on top of ours, making zoom
+// fight itself. Suppress the native gesture on the map only.
+stage.addEventListener("gesturestart",  e=>e.preventDefault());
+stage.addEventListener("gesturechange", e=>e.preventDefault());
+stage.addEventListener("touchstart", e=>{ if(e.touches.length>1) e.preventDefault(); }, {passive:false});
+stage.addEventListener("touchmove",  e=>{ if(e.touches.length>1) e.preventDefault(); }, {passive:false});
 
 // Double-click empty space to add a node right where you clicked.
 let pendingPos = null;
