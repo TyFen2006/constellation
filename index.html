@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#0B0D10" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Constellation" />
+<link rel="manifest" href='data:application/manifest+json,{"name":"Constellation","short_name":"Constellation","display":"standalone","start_url":".","background_color":"%230B0D10","theme_color":"%230B0D10"}' />
+<title>Constellation — think for yourself, become who you actually are</title>
+<style>
+  /* ─────────────────────────────────────────────────────────────────────
+     CONSTELLATION  ·  single-file app  ·  open this in Edge by double-clicking
+     A mind map for connecting thoughts, emotions & behaviors — plus a gentle
+     reflective companion. Everything stays on YOUR device. Not a medical or
+     therapy tool.  Edit the CONFIG block in the <script> to customise.
+     ───────────────────────────────────────────────────────────────────── */
+
+  :root{
+    --bg:#0B0D10; --panel:#111419; --raised:#161A20; --line:#23282F;
+    --lineSoft:#1A1E24; --text:#E8E6E0; --dim:#9A9892; --faint:#5E5C57;
+    --accent:#C9A86A; --accentDim:#7A6843;
+    --thought:#7F8FB5; --emotion:#B57F9A; --behavior:#7FB59A;
+    --sans:"Segoe UI","Helvetica Neue",Helvetica,Arial,sans-serif;
+    --serif:Georgia,"Times New Roman",serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--text); font-family:var(--sans);
+    -webkit-font-smoothing:antialiased; overflow:hidden;
+    -webkit-tap-highlight-color:transparent;
+  }
+  button{font-family:var(--sans)}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#22272E;border-radius:6px}
+  ::-webkit-scrollbar-track{background:transparent}
+
+  /* layout */
+  #app{display:flex;flex-direction:column;height:100vh}
+  header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 22px;border-bottom:1px solid var(--line);flex:none;gap:16px;
+  }
+  .brand{display:flex;align-items:baseline;gap:12px;min-width:0}
+  .brand h1{font-family:var(--serif);font-size:21px;letter-spacing:.04em;margin:0;font-weight:400}
+  .brand .tag{font-size:11.5px;color:var(--faint);letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  nav{display:flex;gap:4px;flex:none}
+  nav button{
+    background:transparent;color:var(--dim);border:1px solid transparent;
+    border-radius:8px;padding:7px 14px;font-size:13px;cursor:pointer;letter-spacing:.02em;
+  }
+  nav button.active{background:var(--raised);color:var(--text);border-color:var(--line)}
+
+  .views{flex:1;min-height:0;position:relative}
+  .view{position:absolute;inset:0;display:none}
+  .view.active{display:flex}
+
+  /* ── MAP view ───────────────────────────────────────────── */
+  aside.rail{
+    width:240px;border-right:1px solid var(--line);padding:18px 16px;
+    display:flex;flex-direction:column;gap:20px;background:var(--panel);
+    overflow-y:auto;flex:none;
+  }
+  .sec-title{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#6B6964;margin-bottom:10px}
+  .check{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text);cursor:pointer;padding:4px 0}
+  .check input{accent-color:var(--accent);cursor:pointer}
+  .glyph{width:14px;display:inline-block;text-align:center}
+  .btn{
+    width:100%;background:var(--raised);color:var(--text);border:1px solid var(--line);
+    border-radius:8px;padding:10px;font-size:13px;cursor:pointer;transition:background .15s;
+  }
+  .btn:hover{background:#1B2026}
+  .btn.ghost{background:transparent}
+  .btn.gold{background:var(--accent);color:var(--bg);border:none;font-weight:600}
+  .btn.gold:hover{background:#D8B978}
+  .btn.warn{background:transparent;color:#B98080;border-color:#3A2A2A}
+  .btn[disabled]{opacity:.4;cursor:default}
+  .btn.small{padding:8px;font-size:12px}
+  .row2{display:flex;gap:8px}
+  .muted{font-size:12px;color:var(--dim);line-height:1.6}
+  .footnote{margin-top:auto;font-size:11px;color:var(--faint);line-height:1.6}
+
+  .stage-wrap{flex:1;min-width:0;position:relative;overflow:hidden;touch-action:none;
+    background:radial-gradient(900px 600px at 60% 35%,#12161C 0%,#0B0D10 70%);}
+  .railToggle{display:none;position:absolute;top:14px;left:14px;z-index:10;
+    background:rgba(11,13,16,.7);border:1px solid var(--line);color:var(--text);
+    border-radius:8px;width:38px;height:32px;font-size:15px;cursor:pointer;line-height:1}
+  .rail-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:44}
+  #linksSvg{position:absolute;inset:0;pointer-events:none}
+  #stage{cursor:grab}
+  #canvas{position:absolute;inset:0;transform-origin:0 0;will-change:transform}
+  .zoomctl{position:absolute;top:14px;right:16px;display:flex;flex-direction:column;gap:6px;z-index:10}
+  .zoomctl button{width:32px;height:32px;background:rgba(11,13,16,.7);border:1px solid var(--line);
+    color:var(--text);border-radius:8px;font-size:16px;cursor:pointer;line-height:1}
+  .zoomctl button:hover{border-color:var(--accentDim)}
+  .mapselect{width:100%;background:var(--raised);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px;font-size:12.5px;cursor:pointer}
+  /* The node is anchored AT the dot, so connecting lines meet the dot exactly.
+     The label floats beneath without shifting the dot's position. */
+  .node{position:absolute;transform:translate(-50%,-50%);cursor:grab;user-select:none;transition:opacity .25s}
+  .node.dragging{cursor:grabbing}
+  .node .dot{position:relative;width:14px;height:14px;border-radius:50%;background:var(--bg);border:2px solid #888}
+  /* Invisible, generous hit area so the small dots are easy to grab & drag. */
+  .node .dot::before{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:42px;height:42px;border-radius:50%}
+  .node.centre .dot{width:18px;height:18px}
+  .node .lbl{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:6px;
+    width:140px;font-size:11.5px;text-align:center;color:var(--dim);line-height:1.3;
+    text-shadow:0 1px 4px rgba(0,0,0,.85);pointer-events:none;white-space:normal}
+  .node.sel .lbl{color:var(--text);font-weight:500}
+  .node.dim{opacity:.3}
+  .node.linksrc .dot{border-color:var(--accent) !important;
+    box-shadow:0 0 0 4px rgba(201,168,106,.28),0 0 18px rgba(201,168,106,.35) !important}
+
+  .legend{position:absolute;bottom:14px;left:16px;display:flex;gap:14px;font-size:11.5px;
+    color:var(--dim);background:rgba(11,13,16,.65);padding:8px 12px;border-radius:8px;border:1px solid var(--lineSoft)}
+  .legdot{display:flex;align-items:center;gap:6px}
+  .legdot i{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .hint{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:var(--accentDim);
+    color:var(--bg);padding:6px 14px;border-radius:20px;font-size:12px;display:none}
+  .hint.show{display:block}
+  .empty-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:var(--faint);font-size:14px;text-align:center;pointer-events:none;padding:40px;line-height:1.6}
+
+  aside.inspector{width:256px;border-left:1px solid var(--line);padding:18px 16px;
+    background:var(--panel);overflow-y:auto;flex:none}
+  .insp-kind{display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:11px;
+    letter-spacing:.1em;text-transform:uppercase}
+  .insp-label{font-family:var(--serif);font-size:18px;line-height:1.35;margin-bottom:16px;
+    border:1px solid transparent;border-radius:6px;padding:4px 6px;margin-left:-6px}
+  .insp-label:focus{outline:none;border-color:var(--line);background:var(--bg)}
+  .insp-row{display:flex;justify-content:space-between;align-items:center}
+  .insp-row .k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#6B6964}
+  .pill{border:1px solid var(--line);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;color:var(--dim);background:transparent}
+  .neighbour{font-size:12.5px;color:var(--dim);padding:5px 0;border-bottom:1px solid var(--lineSoft);display:flex;gap:8px;align-items:center}
+  .neighbour .unlink{background:transparent;border:none;color:var(--faint);font-size:14px;cursor:pointer;padding:0 4px;line-height:1}
+  .neighbour .unlink:hover{color:#B98080}
+  .origin-bar{display:flex;height:8px;border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+
+  /* ── COMPANION (chat) view ──────────────────────────────── */
+  .chat-wrap{flex:1;display:flex;flex-direction:column;min-width:0;max-width:860px;margin:0 auto;width:100%}
+  .chat-head{padding:16px 22px;border-bottom:1px solid var(--line);flex:none}
+  .chat-head h2{font-family:var(--serif);font-weight:400;font-size:18px;margin:0 0 4px}
+  .chat-scroll{flex:1;overflow-y:auto;padding:22px}
+  .msg{max-width:74%;margin-bottom:14px;padding:11px 15px;border-radius:14px;font-size:14px;line-height:1.6;white-space:pre-wrap}
+  .msg.bot{background:var(--raised);border:1px solid var(--line);border-bottom-left-radius:4px;margin-right:auto}
+  .msg.me{background:var(--accentDim);color:#1A150A;border-bottom-right-radius:4px;margin-left:auto}
+  .msg.crisis{background:#1C1410;border:1px solid #4A3520;color:#F0D9B8}
+  .msg.typing{color:var(--faint);letter-spacing:3px;animation:pulse 1.2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.35}50%{opacity:.9}}
+  .msg .addmap{margin-top:10px}
+  .msg .addmap button{background:transparent;border:1px solid var(--accentDim);color:var(--accent);
+    border-radius:14px;padding:5px 12px;font-size:12px;cursor:pointer}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;padding:0 22px 10px}
+  .chip{background:var(--raised);border:1px solid var(--line);color:var(--dim);border-radius:16px;
+    padding:7px 13px;font-size:12.5px;cursor:pointer}
+  .chip:hover{color:var(--text);border-color:var(--accentDim)}
+  .chat-input{display:flex;gap:10px;padding:14px 22px;border-top:1px solid var(--line);flex:none}
+  .chat-input textarea{flex:1;background:var(--bg);color:var(--text);border:1px solid var(--line);
+    border-radius:10px;padding:11px 14px;font-size:14px;font-family:var(--sans);resize:none;height:46px;line-height:1.4}
+  .chat-input textarea:focus{outline:none;border-color:var(--accentDim)}
+  .lensbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:0 22px 12px}
+  .lenslabel{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+  .lenschip{background:transparent;border:1px solid var(--line);color:var(--dim);border-radius:16px;padding:6px 12px;font-size:12.5px;cursor:pointer}
+  .lenschip:hover{border-color:var(--lc);color:var(--text)}
+  .msg.lens{background:#13161B;border:1px solid var(--line)}
+  .lenscard{border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:14px;background:var(--panel)}
+  .lenscard h3{margin:0 0 6px;font-family:var(--serif);font-weight:400;font-size:18px}
+
+  /* ── ABOUT view ─────────────────────────────────────────── */
+  .doc{flex:1;overflow-y:auto;padding:30px 36px}
+  .doc .inner{max-width:680px;margin:0 auto}
+  .doc h2{font-family:var(--serif);font-weight:400;font-size:24px;margin:0 0 6px}
+  .doc h3{font-size:15px;color:var(--text);margin:26px 0 8px;font-weight:600}
+  .doc p,.doc li{font-size:14px;color:#A8A6A0;line-height:1.7}
+  .doc a{color:var(--accent)}
+  .callout{background:#15120C;border:1px solid #2E2A1C;border-radius:12px;padding:16px 20px;margin:18px 0}
+  .callout .tt{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+  .callout p{color:#E8E6E0;margin:0}
+
+  /* ── Modal ──────────────────────────────────────────────── */
+  .modal-bg{position:fixed;inset:0;background:rgba(5,6,8,.72);display:none;align-items:center;justify-content:center;z-index:50}
+  .modal-bg.show{display:flex}
+  .modal{width:380px;background:var(--raised);border:1px solid var(--line);border-radius:14px;padding:22px}
+  .modal h3{font-family:var(--serif);font-size:18px;margin:0 0 16px;font-weight:400}
+  .kindpick,.originpick{display:flex;gap:8px;margin-bottom:14px}
+  .kindpick button,.originpick button{flex:1;background:transparent;border:1px solid var(--line);
+    color:var(--dim);border-radius:8px;padding:8px 4px;font-size:12px;cursor:pointer}
+  .kindpick button.on{background:rgba(255,255,255,.04)}
+  .originpick button.on{background:var(--accentDim);color:var(--bg)}
+  .modal textarea{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);
+    border-radius:8px;padding:10px 12px;font-size:14px;font-family:var(--sans);resize:none}
+
+  /* ── MOBILE layout (phones & small tablets) ─────────────── */
+  @media (max-width:820px){
+    /* header: slim brand on top; nav becomes an app-style bottom tab bar */
+    header{padding:10px 14px}
+    .brand .tag{display:none}
+    nav{position:fixed;bottom:0;left:0;right:0;z-index:46;background:var(--panel);
+      border-top:1px solid var(--line);justify-content:space-around;
+      padding:6px 8px calc(6px + env(safe-area-inset-bottom))}
+    nav button{flex:1;padding:9px 2px;font-size:11.5px;text-align:center}
+    #app{padding-bottom:calc(48px + env(safe-area-inset-bottom))}
+
+    /* left rail → slide-in drawer, opened with the ☰ button */
+    .railToggle{display:block}
+    aside.rail{position:fixed;top:0;bottom:0;left:0;width:min(300px,82vw);z-index:45;
+      transform:translateX(-105%);transition:transform .25s ease;
+      border-right:1px solid var(--line);box-shadow:8px 0 30px rgba(0,0,0,.5);
+      padding-bottom:calc(60px + env(safe-area-inset-bottom))}
+    #view-map.rail-open aside.rail{transform:none}
+    #view-map.rail-open .rail-backdrop{display:block}
+
+    /* inspector → bottom sheet, appears when a node is selected */
+    aside.inspector{position:fixed;left:0;right:0;bottom:calc(48px + env(safe-area-inset-bottom));
+      top:auto;width:auto;max-height:44vh;z-index:30;
+      border-left:none;border-top:1px solid var(--line);border-radius:14px 14px 0 0;
+      transform:translateY(115%);transition:transform .25s ease;box-shadow:0 -8px 30px rgba(0,0,0,.5)}
+    #view-map.has-sel aside.inspector{transform:none}
+
+    /* chat: bigger touch targets; 16px inputs stop iOS auto-zoom on focus */
+    .msg{max-width:86%}
+    .chat-head{padding:12px 16px}
+    .chat-head .muted{display:none}
+    .chat-scroll{padding:16px 14px}
+    .chat-input{padding:10px 14px}
+    .chat-input textarea{font-size:16px}
+    .chips,.lensbar{flex-wrap:nowrap;overflow-x:auto;padding-left:14px;padding-right:14px;
+      -ms-overflow-style:none;scrollbar-width:none}
+    .chips::-webkit-scrollbar,.lensbar::-webkit-scrollbar{display:none}
+    .chip,.lenschip{white-space:nowrap;flex:none}
+
+    /* docs & modal fit the screen */
+    .doc{padding:20px 16px}
+    .modal{width:min(380px,calc(100vw - 28px))}
+    .modal textarea,#modalText{font-size:16px}
+  }
+
+  /* toast */
+  #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--raised);border:1px solid var(--accentDim);color:var(--text);padding:10px 18px;
+    border-radius:24px;font-size:13px;opacity:0;transition:all .3s;pointer-events:none;z-index:60}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">
+      <h1>Constellation</h1>
+      <span class="tag">think for yourself · become who you actually are</span>
+    </div>
+    <nav>
+      <button data-view="map" class="active">Map</button>
+      <button data-view="companion">Companion</button>
+      <button data-view="lenses">Lenses</button>
+      <button data-view="about">About &amp; Safety</button>
+    </nav>
+  </header>
+
+  <div class="views">
+    <!-- ══════════ MAP ══════════ -->
+    <section class="view active" id="view-map">
+      <aside class="rail">
+        <div>
+          <div class="sec-title">Add</div>
+          <button class="btn" id="addBtn">+ New node</button>
+          <button class="btn ghost small" id="connectBtn" style="margin-top:8px">Connect selected →</button>
+        </div>
+
+        <div>
+          <div class="sec-title">Show</div>
+          <div id="filters"></div>
+        </div>
+
+        <div>
+          <div class="sec-title">Origin lens</div>
+          <p class="muted" style="margin:0 0 10px">See how much of your inner life you actually authored, versus absorbed from feeds and others.</p>
+          <button class="btn ghost small" id="lensBtn" style="border-color:var(--accentDim);color:var(--accent)">Reveal origins</button>
+          <div style="margin-top:14px">
+            <div class="origin-bar" id="originBar"></div>
+            <p class="muted" id="originText" style="margin-top:8px"></p>
+          </div>
+        </div>
+
+        <div>
+          <div class="sec-title">Maps</div>
+          <p class="muted" style="margin:0 0 10px">Keep a separate map for a day, a mood, or a fresh start — switch any time.</p>
+          <select id="mapSelect" class="mapselect"></select>
+          <div class="row2" style="margin-top:8px">
+            <button class="btn ghost small" id="newMapBtn">+ New map</button>
+            <button class="btn ghost small" id="renameMapBtn">Rename</button>
+          </div>
+          <div class="row2" style="margin-top:8px">
+            <button class="btn ghost small" id="exportBtn">Export</button>
+            <button class="btn ghost small" id="importBtn">Import</button>
+          </div>
+          <div class="row2" style="margin-top:8px">
+            <button class="btn warn small" id="resetBtn">Clear</button>
+            <button class="btn warn small" id="delMapBtn">Delete</button>
+          </div>
+          <input type="file" id="fileInput" accept="application/json" style="display:none" />
+        </div>
+
+        <div class="footnote">Saved automatically on this device. Nothing is uploaded. Not a medical or therapy tool.</div>
+      </aside>
+
+      <div class="stage-wrap" id="stage">
+        <div id="canvas">
+          <svg id="linksSvg"></svg>
+        </div>
+        <div class="empty-stage" id="emptyStage" style="display:none">
+          This map is empty.<br>Double-tap anywhere — or use <b style="color:var(--accent)">+ New node</b> in the menu — to place your first thought, feeling, or behavior.
+        </div>
+        <div class="legend" id="legend"></div>
+        <div class="hint" id="hint">Connecting from the glowing node — click another node to link, or click empty space to cancel</div>
+        <div class="zoomctl">
+          <button id="zoomIn" title="Zoom in">+</button>
+          <button id="zoomReset" title="Reset view">⤢</button>
+          <button id="zoomOut" title="Zoom out">−</button>
+        </div>
+        <button class="railToggle" id="railToggle" title="Menu">☰</button>
+      </div>
+
+      <div class="rail-backdrop" id="railBackdrop"></div>
+      <aside class="inspector" id="inspector"></aside>
+    </section>
+
+    <!-- ══════════ COMPANION ══════════ -->
+    <section class="view" id="view-companion">
+      <div class="chat-wrap">
+        <div class="chat-head">
+          <h2>Think for yourself, out loud</h2>
+          <p class="muted">I won't tell you what to think — that's the whole point. I ask questions so <i>you</i> can hear your own mind, sort what's genuinely yours from what you absorbed, and move toward the person you actually want to be. I'm not a therapist, and I don't advise or diagnose.</p>
+        </div>
+        <div class="chat-scroll" id="chatScroll"></div>
+        <div class="chips" id="chatChips"></div>
+        <div class="lensbar" id="lensBar"></div>
+        <div class="chat-input">
+          <textarea id="chatInput" placeholder="Type whatever's on your mind…  (Enter to send)"></textarea>
+          <button class="btn gold" id="chatSend" style="width:auto;padding:0 22px">Send</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════ LENSES ══════════ -->
+    <section class="view" id="view-lenses">
+      <div class="doc"><div class="inner">
+        <h2>Lenses</h2>
+        <p>A lens is a way of looking — not a set of beliefs to swallow. Each of these traditions spent centuries asking how to live well. You don't have to <i>join</i> any of them. You try one on, see what it reveals about your situation, keep what's useful, and discard the rest. That act of testing rather than adopting is itself the skill: thinking for yourself.</p>
+        <div class="callout">
+          <div class="tt">How to use them well</div>
+          <p>Try a lens on — don't swallow it. The goal is never to become "a Stoic" or "an Existentialist" (that's just a fancier crowd to follow). The goal is to borrow a perspective deliberately, notice where it fits and where it doesn't, and end up with a view that's genuinely yours. Open the <b>Companion</b> and tap a lens to apply it to whatever you're thinking about — then tap another to compare. Prefer a hint? Flip on <b>Suggestions</b> in the Companion's lens bar and it'll occasionally point out a fitting lens — still opt-in; nothing applies unless you tap it.</p>
+        </div>
+        <div id="lensCards"></div>
+      </div></div>
+    </section>
+
+    <!-- ══════════ ABOUT ══════════ -->
+    <section class="view" id="view-about">
+      <div class="doc"><div class="inner">
+        <h2>About &amp; Safety</h2>
+
+        <div class="callout">
+          <div class="tt">What this is for</div>
+          <p>Two ideas hold this whole thing together: <b>become the best version of yourself</b>, and to do that, <b>think for yourself</b>. Most of what runs through our heads in a day is borrowed — opinions from feeds, fears from comparison, "shoulds" from a crowd we never chose. Constellation exists to help you separate what's genuinely <i>yours</i> from what you just absorbed, so the life you build is authored by you and not by an algorithm.</p>
+        </div>
+
+        <p>It's a personal reflection tool. You place your thoughts, feelings, and behaviors as points, connect the ones that feel related, and step back to see the shape of your week. The <b>Origin lens</b> shows how much of your inner life you actually authored. The companion is a gentle listener that asks open questions — it never answers them for you, because handing you someone else's conclusions would defeat the entire purpose.</p>
+
+        <div class="callout">
+          <div class="tt">If you are in crisis</div>
+          <p>This app is not the right tool in an emergency, and it cannot help if you are in danger. If you are thinking about harming yourself or you feel unsafe, please reach out to a real person now:</p>
+          <p style="margin-top:10px">
+            • <b>Emergency:</b> 911 (US) · 000 (Australia) · 112 (Europe) · or your local number<br>
+            • <b>US:</b> Call or text <b>988</b> (Suicide &amp; Crisis Lifeline)<br>
+            • <b>Australia:</b> Lifeline <b>13 11 14</b><br>
+            • <b>UK &amp; ROI:</b> Samaritans <b>116 123</b><br>
+            • <b>Anywhere:</b> find a local line at <a href="https://findahelpline.com" target="_blank" rel="noopener">findahelpline.com</a>
+          </p>
+        </div>
+
+        <h3>What this is not</h3>
+        <p>Constellation does not diagnose, treat, or give medical, psychological, or therapeutic advice. It is not a substitute for a qualified professional. Nothing it shows you is an assessment of your mental health. If something is weighing on you, a doctor, counsellor, or psychologist is the right place to take it.</p>
+
+        <h3>Your privacy</h3>
+        <p>Nothing you write here is sent to any server — there is no account, no upload, no analytics. Your <b>maps</b> are saved in your own browser on this device (local storage), so they're waiting for you next time. Your <b>companion conversations</b> are never saved at all: they exist only while the tab is open and disappear when you close it. Clearing your browser data, or using a different browser/computer, means your maps start fresh — use <b>Export</b> to keep a backup file you control.</p>
+
+        <h3>How to use the map</h3>
+        <p>• <b>Add a node</b> for a thought (◇), emotion (◯), or behavior (△).<br>
+        • <b>Drag</b> nodes to arrange them.<br>
+        • <b>Connect</b> two nodes you suspect are related.<br>
+        • <b>Origin lens</b> highlights what you absorbed from outside ("borrowed") versus what's genuinely yours — a small antidote to comparison and groupthink.<br>
+        • <b>Lenses</b> let you view a thought through a philosophical tradition (Stoic, Existentialist, and more) — as tools to test against your own life, never as beliefs to adopt.<br>
+        • The point isn't to journal. It's to <i>place</i> things and see how they link.</p>
+
+        <h3>Honest note</h3>
+        <p>The companion uses simple pattern-matching, not artificial intelligence — it reflects and asks rather than understands. It will sometimes miss the mark. Treat it as a mirror to think against, nothing more.</p>
+      </div></div>
+    </section>
+  </div>
+</div>
+
+<!-- Add-node modal -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3>What's on your mind?</h3>
+    <div class="kindpick" id="modalKind"></div>
+    <textarea id="modalText" rows="2" placeholder="A short phrase — not a paragraph. e.g. 'felt behind everyone'"></textarea>
+    <div class="muted" style="margin:14px 0 8px">Where did this come from?</div>
+    <div class="originpick" id="modalOrigin"></div>
+    <div class="row2">
+      <button class="btn ghost" id="modalCancel">Cancel</button>
+      <button class="btn gold" id="modalAdd">Add to map</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ═══════════════════════════════════════════════════════════════════════
+   CONFIG  —  edit these to customise colours, node types, and the companion
+   ═══════════════════════════════════════════════════════════════════════ */
+const KINDS = {
+  thought:  { label:"Thought",  color:"var(--thought)",  raw:"#7F8FB5", glow:"rgba(127,143,181,.35)", icon:"◇" },
+  emotion:  { label:"Emotion",  color:"var(--emotion)",  raw:"#B57F9A", glow:"rgba(181,127,154,.35)", icon:"◯" },
+  behavior: { label:"Behavior", color:"var(--behavior)", raw:"#7FB59A", glow:"rgba(127,181,154,.35)", icon:"△" },
+};
+const ORIGINS = {
+  mine:     { label:"Mine",     desc:"I arrived at this myself" },
+  borrowed: { label:"Borrowed", desc:"Absorbed from feeds / others / culture" },
+  unsure:   { label:"Unsure",   desc:"Haven't examined where this came from" },
+};
+
+// First-time seed so the app isn't empty. Cleared once the user edits their map.
+const SEED = {
+  nodes:[
+    { id:"n1", kind:"behavior", label:"Scrolled until 1am",            origin:"mine",     x:.30, y:.30 },
+    { id:"n2", kind:"emotion",  label:"Felt behind everyone",          origin:"borrowed", x:.52, y:.22 },
+    { id:"n3", kind:"thought",  label:"I should have it figured out",  origin:"borrowed", x:.70, y:.34 },
+    { id:"n4", kind:"behavior", label:"Skipped the gym",               origin:"mine",     x:.24, y:.55 },
+    { id:"n5", kind:"emotion",  label:"Restless, couldn't focus",      origin:"mine",     x:.45, y:.52 },
+    { id:"n6", kind:"thought",  label:"Everyone online seems certain", origin:"borrowed", x:.66, y:.60 },
+    { id:"n7", kind:"behavior", label:"Texted roommate to clear air",  origin:"mine",     x:.40, y:.78 },
+    { id:"n8", kind:"emotion",  label:"Relief after talking",          origin:"mine",     x:.62, y:.80 },
+    { id:"n9", kind:"thought",  label:"Comparison is the real problem",origin:"mine",     x:.82, y:.70 },
+  ],
+  links:[["n1","n2"],["n2","n3"],["n3","n6"],["n6","n2"],["n4","n5"],["n5","n1"],["n5","n6"],["n7","n8"],["n8","n9"],["n9","n6"],["n2","n5"]],
+};
+
+/* ═══════════════════════════════════════════════════════════════════════
+   STATE  +  persistence
+   ═══════════════════════════════════════════════════════════════════════ */
+const KEY   = "constellation.v1";   // legacy single-map key (migrated on first load)
+const DBKEY = "constellation.db";   // multi-map store
+
+let DB = loadDB();
+let S  = currentMap();              // S points at the ACTIVE map; it has .nodes / .links
+function currentMap(){ return DB.maps.find(m=>m.id===DB.currentId) || DB.maps[0]; }
+
+function loadDB(){
+  // 1) existing multi-map store
+  try{
+    const raw = localStorage.getItem(DBKEY);
+    if(raw){ const d = JSON.parse(raw); if(d && d.maps && d.maps.length){
+      if(!d.currentId || !d.maps.find(m=>m.id===d.currentId)) d.currentId = d.maps[0].id;
+      return d;
+    }}
+  }catch(e){}
+  // 2) migrate an old single map, if present
+  try{
+    const old = localStorage.getItem(KEY);
+    if(old){ const o = JSON.parse(old); if(o && o.nodes){
+      const id = uid();
+      return { maps:[{ id, name:"My first map", created:Date.now(), nodes:o.nodes, links:o.links||[] }], currentId:id };
+    }}
+  }catch(e){}
+  // 3) fresh seed
+  const id = uid();
+  return { maps:[{ id, name:"My first map", created:Date.now(),
+    nodes:JSON.parse(JSON.stringify(SEED.nodes)), links:JSON.parse(JSON.stringify(SEED.links)) }], currentId:id };
+}
+function save(){ try{ localStorage.setItem(DBKEY, JSON.stringify(DB)); }catch(e){} }
+
+// Settings (e.g. whether the companion may gently suggest lenses). Default OFF
+// — fully user-initiated, so the tool never decides which worldview you need.
+const SKEY = "constellation.settings";
+let settings = loadSettings();
+function loadSettings(){ try{ const r=localStorage.getItem(SKEY); if(r) return Object.assign({lensSuggest:false}, JSON.parse(r)); }catch(e){} return { lensSuggest:false }; }
+function saveSettings(){ try{ localStorage.setItem(SKEY, JSON.stringify(settings)); }catch(e){} }
+
+let selected = null, linkFrom = null, dragId = null, lensOn = false;
+let filter = { thought:true, emotion:true, behavior:true };
+let draft = { kind:"thought", origin:"unsure" };
+
+const $ = (s,el=document)=>el.querySelector(s);
+const $$ = (s,el=document)=>[...el.querySelectorAll(s)];
+function uid(){ return "n"+Math.random().toString(36).slice(2,8); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   VIEW SWITCHING
+   ═══════════════════════════════════════════════════════════════════════ */
+$$("nav button").forEach(b=> b.onclick = ()=>{
+  $$("nav button").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");
+  $$(".view").forEach(v=>v.classList.remove("active"));
+  $("#view-"+b.dataset.view).classList.add("active");
+  if(b.dataset.view==="map") setTimeout(renderGraph,0);
+});
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MAP — rendering
+   ═══════════════════════════════════════════════════════════════════════ */
+const stage = $("#stage"), canvas = $("#canvas"), svg = $("#linksSvg");
+function dims(){ const r = stage.getBoundingClientRect(); return { w:r.width, h:Math.max(420,r.height) }; }
+function px(n){ const d=dims(); return { x:n.x*d.w, y:n.y*d.h }; }
+
+// Zoom & pan: the #canvas layer is transformed; node/line coords stay in base px.
+let view = { scale:1, panX:0, panY:0 };
+function applyView(){ canvas.style.transform = "translate("+view.panX+"px,"+view.panY+"px) scale("+view.scale+")"; }
+function clamp(v,a,b){ return Math.min(b, Math.max(a, v)); }
+
+function visibleNodes(){ return S.nodes.filter(n=>filter[n.kind]); }
+function degreeMap(){
+  const d={}; S.nodes.forEach(n=>d[n.id]=0);
+  S.links.forEach(([a,b])=>{ if(d[a]!=null)d[a]++; if(d[b]!=null)d[b]++; });
+  return d;
+}
+function centreId(){
+  const d=degreeMap(); let best=null;
+  Object.entries(d).forEach(([id,dg])=>{ if(!best||dg>best.dg) best={id,dg}; });
+  return best && best.dg>0 ? best.id : null;
+}
+
+function renderGraph(){
+  const d = dims();
+  svg.setAttribute("width", d.w); svg.setAttribute("height", d.h);
+  // remove old nodes (keep svg, empty, legend, hint)
+  $$(".node", canvas).forEach(el=>el.remove());
+
+  const vis = visibleNodes();
+  $("#emptyStage").style.display = S.nodes.length===0 ? "flex" : "none";
+  const cId = centreId();
+
+  vis.forEach(n=>{
+    const p = px(n);
+    const k = KINDS[n.kind];
+    const el = document.createElement("div");
+    el.className = "node" + (n.id===selected?" sel":"") + (n.id===cId?" centre":"") + (n.id===linkFrom?" linksrc":"");
+    const dimIt = lensOn && n.origin!=="borrowed";
+    if(dimIt) el.classList.add("dim");
+    el.style.left = p.x+"px"; el.style.top = p.y+"px";
+    el.dataset.id = n.id;
+
+    const ring = lensOn ? (n.origin==="borrowed"?"#C9A86A":"#3A3E45") : k.raw;
+    const sel = n.id===selected;
+    el.innerHTML =
+      '<div class="dot" style="border-color:'+ring+';'+
+        (sel?'box-shadow:0 0 0 4px rgba(201,168,106,.18),0 0 16px '+k.glow+';':
+         n.id===cId?'box-shadow:0 0 14px '+k.glow+';':'')+
+      '"></div>'+
+      '<div class="lbl">'+escapeHtml(n.label)+'</div>';
+
+    el.addEventListener("pointerdown", e=>onPointerDown(e,n.id));
+    el.addEventListener("click", e=>{ e.stopPropagation(); onNodeClick(n.id); });
+    canvas.appendChild(el);
+  });
+
+  drawLinks();
+  renderInspector();
+  renderOriginStats();
+  renderLegend();
+}
+
+function drawLinks(){
+  const vis = new Set(visibleNodes().map(n=>n.id));
+  let s = "";
+  S.links.forEach(([a,b])=>{
+    if(!vis.has(a)||!vis.has(b)) return;
+    const na=S.nodes.find(n=>n.id===a), nb=S.nodes.find(n=>n.id===b);
+    if(!na||!nb) return;
+    const pa=px(na), pb=px(nb);
+    const active = selected && (a===selected||b===selected);
+    s += '<line x1="'+pa.x+'" y1="'+pa.y+'" x2="'+pb.x+'" y2="'+pb.y+'" stroke="'+
+         (active?"#C9A86A":"#2A2F37")+'" stroke-width="'+(active?1.6:1)+'" stroke-opacity="'+(active?.9:.55)+'"/>';
+  });
+  svg.innerHTML = s;
+}
+
+function renderLegend(){
+  const el = $("#legend");
+  if(lensOn){
+    el.innerHTML =
+      legdot("#C9A86A","Borrowed (examine these)") + legdot("#3A3E45","Yours / unexamined");
+  } else {
+    el.innerHTML = Object.values(KINDS).map(k=>legdot(k.raw,k.label)).join("");
+  }
+}
+const legdot = (c,l)=> '<span class="legdot"><i style="background:'+c+'"></i>'+l+'</span>';
+
+/* ── interactions ── */
+function onNodeClick(id){
+  if(linkFrom){
+    if(linkFrom!==id){
+      const exists = S.links.some(([a,b])=>(a===linkFrom&&b===id)||(a===id&&b===linkFrom));
+      if(!exists){ S.links.push([linkFrom,id]); save(); }
+    }
+    cancelLink(); renderGraph(); return;
+  }
+  selected = (id===selected)?null:id;
+  renderGraph();
+}
+function onPointerDown(e,id){
+  e.stopPropagation();
+  if(ptrs.size>=2) return;                 // a pinch is in progress — don't start a drag
+  if(linkFrom){ onNodeClick(id); return; }
+  dragId = id; selected = id;
+  const nodeEl = e.target.closest(".node");
+  if(nodeEl){ nodeEl.classList.add("dragging"); nodeEl.setPointerCapture && nodeEl.setPointerCapture(e.pointerId); }
+  renderGraph();
+}
+// Node dragging — converts screen coords back through the zoom/pan transform.
+window.addEventListener("pointermove", e=>{
+  if(!dragId || pinch) return;
+  const d = dims(), r = stage.getBoundingClientRect();
+  const cx = (e.clientX - r.left - view.panX)/view.scale;
+  const cy = (e.clientY - r.top  - view.panY)/view.scale;
+  const n = S.nodes.find(n=>n.id===dragId); if(!n) return;
+  n.x = clamp(cx/d.w, .02, .98); n.y = clamp(cy/d.h, .03, .97);
+  const el = $('.node[data-id="'+dragId+'"]', canvas);
+  if(el){ const p=px(n); el.style.left=p.x+"px"; el.style.top=p.y+"px"; }
+  drawLinks();
+});
+window.addEventListener("pointerup", ()=>{ if(dragId){ dragId=null; save(); $$(".node.dragging").forEach(e=>e.classList.remove("dragging")); } });
+
+// Pan by dragging the empty background; click (no drag) deselects.
+let pan = null;
+stage.addEventListener("pointerdown", e=>{
+  if(e.target.closest(".node") || e.target.closest(".zoomctl")) return;
+  if(linkFrom){ cancelLink(); renderGraph(); return; }   // click empty space cancels connecting
+  pan = { sx:e.clientX, sy:e.clientY, px:view.panX, py:view.panY, moved:false };
+});
+window.addEventListener("pointermove", e=>{
+  if(!pan) return;
+  const dx=e.clientX-pan.sx, dy=e.clientY-pan.sy;
+  if(Math.abs(dx)+Math.abs(dy)>3) pan.moved=true;
+  view.panX=pan.px+dx; view.panY=pan.py+dy; applyView();
+});
+window.addEventListener("pointerup", ()=>{
+  if(pan){ if(!pan.moved && !linkFrom){ selected=null; renderGraph(); } pan=null; }
+});
+
+// Wheel to zoom toward the cursor; buttons zoom toward the centre.
+stage.addEventListener("wheel", e=>{
+  e.preventDefault();
+  const r = stage.getBoundingClientRect();
+  zoomAt(e.clientX-r.left, e.clientY-r.top, e.deltaY<0 ? 1.12 : 1/1.12);
+}, { passive:false });
+function zoomAt(sx, sy, factor){
+  const old=view.scale, ns=clamp(old*factor, .3, 3);
+  if(ns===old) return;
+  const cx=(sx-view.panX)/old, cy=(sy-view.panY)/old;
+  view.scale=ns; view.panX=sx-cx*ns; view.panY=sy-cy*ns; applyView();
+}
+$("#zoomIn").onclick   = ()=>{ const d=dims(); zoomAt(d.w/2, d.h/2, 1.2); };
+$("#zoomOut").onclick  = ()=>{ const d=dims(); zoomAt(d.w/2, d.h/2, 1/1.2); };
+$("#zoomReset").onclick= ()=>{ view={scale:1,panX:0,panY:0}; applyView(); };
+
+// Mobile drawer (☰) for the left rail.
+$("#railToggle").onclick = ()=> $("#view-map").classList.add("rail-open");
+$("#railBackdrop").onclick = ()=> $("#view-map").classList.remove("rail-open");
+
+// Pinch-to-zoom on touch devices: track two pointers on the stage.
+const ptrs = new Map();
+let pinch = null;
+stage.addEventListener("pointerdown", e=>{
+  ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  if(ptrs.size===2){
+    // second finger down: stop any drag/pan and start pinching
+    dragId=null; pan=null; $$(".node.dragging").forEach(el=>el.classList.remove("dragging"));
+    const [a,b]=[...ptrs.values()];
+    pinch = { d: Math.hypot(a.x-b.x, a.y-b.y) };
+  }
+}, true); // capture: runs even when a finger lands on a node (which stops bubbling)
+window.addEventListener("pointermove", e=>{
+  if(!ptrs.has(e.pointerId)) return;
+  ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  if(pinch && ptrs.size===2){
+    const [a,b]=[...ptrs.values()];
+    const d = Math.hypot(a.x-b.x, a.y-b.y);
+    const r = stage.getBoundingClientRect();
+    if(pinch.d>0 && d>0) zoomAt((a.x+b.x)/2 - r.left, (a.y+b.y)/2 - r.top, d/pinch.d);
+    pinch.d = d;
+  }
+});
+window.addEventListener("pointerup", e=>{ ptrs.delete(e.pointerId); if(ptrs.size<2) pinch=null; });
+window.addEventListener("pointercancel", e=>{ ptrs.delete(e.pointerId); if(ptrs.size<2) pinch=null; dragId=null; pan=null; });
+
+// Double-click empty space to add a node right where you clicked.
+let pendingPos = null;
+stage.addEventListener("dblclick", e=>{
+  if(e.target.closest(".node") || e.target.closest(".zoomctl") || linkFrom) return;
+  const d = dims(), r = stage.getBoundingClientRect();
+  const cx = (e.clientX - r.left - view.panX)/view.scale;
+  const cy = (e.clientY - r.top  - view.panY)/view.scale;
+  pendingPos = { x:clamp(cx/d.w,.02,.98), y:clamp(cy/d.h,.03,.97) };
+  openModal();
+});
+
+document.addEventListener("keydown", e=>{
+  if(e.key==="Escape"){ cancelLink(); return; }
+  // Delete/Backspace removes the selected node — but never while typing somewhere.
+  if((e.key==="Delete"||e.key==="Backspace") && selected && $("#view-map").classList.contains("active")){
+    const a=document.activeElement;
+    if(a && (a.tagName==="TEXTAREA"||a.tagName==="INPUT"||a.tagName==="SELECT"||a.isContentEditable)) return;
+    if($("#modalBg").classList.contains("show")) return;
+    e.preventDefault();
+    S.nodes=S.nodes.filter(x=>x.id!==selected);
+    S.links=S.links.filter(([x,y])=>x!==selected&&y!==selected);
+    selected=null; save(); renderGraph();
+  }
+});
+function cancelLink(){ linkFrom=null; $("#hint").classList.remove("show"); $("#connectBtn").textContent="Connect selected →"; }
+
+/* ── inspector ── */
+function renderInspector(){
+  const el = $("#inspector");
+  const n = S.nodes.find(x=>x.id===selected);
+  $("#view-map").classList.toggle("has-sel", !!n);   // mobile: show/hide bottom sheet
+  if(!n){
+    el.innerHTML =
+      '<div style="font-family:var(--serif);font-size:16px;color:var(--dim);margin-bottom:12px">Nothing selected</div>'+
+      '<p class="muted">Click a node to inspect it. Drag nodes to rearrange. Use <span style="color:var(--accent)">Connect</span> to draw a line between two things you suspect are related.</p>'+
+      '<p class="muted" style="margin-top:18px;color:var(--faint)">The point isn\'t to write. It\'s to <i>place</i> things, connect them, and see the shape your week actually has.</p>';
+    return;
+  }
+  const k=KINDS[n.kind], o=ORIGINS[n.origin], deg=degreeMap()[n.id];
+  const neighbours = S.links.filter(([a,b])=>a===n.id||b===n.id)
+    .map(([a,b])=>S.nodes.find(x=>x.id===(a===n.id?b:a))).filter(Boolean);
+  const obg = n.origin==="borrowed"?"#C9A86A":n.origin==="mine"?"#2B3530":"#22262C";
+  const oco = n.origin==="borrowed"?"#0B0D10":n.origin==="mine"?"#7FB59A":"#9A9892";
+  el.innerHTML =
+    '<div class="insp-kind" style="color:'+k.color+'"><span>'+k.icon+'</span><span>'+k.label+'</span></div>'+
+    '<div class="insp-label" id="inspLabel" contenteditable="true" spellcheck="false">'+escapeHtml(n.label)+'</div>'+
+    '<div class="insp-row"><span class="k">Origin</span>'+
+      '<button class="pill" id="cycleOrigin" style="background:'+obg+';color:'+oco+'">'+o.label+' ↻</button></div>'+
+    '<p class="muted" style="margin:4px 0 18px;color:#7B7975">'+o.desc+'</p>'+
+    '<div class="insp-row"><span class="k">Connections</span><span style="font-size:14px">'+deg+'</span></div>'+
+    '<div style="margin:8px 0 18px">'+
+      (neighbours.length?neighbours.map(nb=>'<div class="neighbour"><span style="color:'+KINDS[nb.kind].color+'">'+KINDS[nb.kind].icon+'</span><span style="flex:1">'+escapeHtml(nb.label)+'</span><button class="unlink" data-nb="'+nb.id+'" title="Remove this connection">×</button></div>').join(''):'<span style="font-size:12px;color:var(--faint)">No connections yet.</span>')+
+    '</div>'+
+    '<button class="btn warn small" id="delNode">Remove node</button>';
+
+  $$(".unlink", el).forEach(b=> b.onclick=()=>{
+    const nbId=b.dataset.nb;
+    S.links = S.links.filter(([a,c])=>!((a===n.id&&c===nbId)||(a===nbId&&c===n.id)));
+    save(); renderGraph();
+  });
+
+  $("#inspLabel").addEventListener("blur", ev=>{ n.label = ev.target.textContent.trim()||n.label; save(); renderGraph(); });
+  $("#inspLabel").addEventListener("keydown", ev=>{ if(ev.key==="Enter"){ ev.preventDefault(); ev.target.blur(); } });
+  $("#cycleOrigin").onclick = ()=>{ const ord=["mine","borrowed","unsure"]; n.origin=ord[(ord.indexOf(n.origin)+1)%3]; save(); renderGraph(); };
+  $("#delNode").onclick = ()=>{ S.nodes=S.nodes.filter(x=>x.id!==n.id); S.links=S.links.filter(([a,b])=>a!==n.id&&b!==n.id); selected=null; save(); renderGraph(); };
+}
+
+/* ── origin stats / lens ── */
+function renderOriginStats(){
+  const c={mine:0,borrowed:0,unsure:0}; S.nodes.forEach(n=>c[n.origin]++);
+  const total=S.nodes.length||1;
+  const seg=v=>(v/total*100)+"%";
+  $("#originBar").innerHTML =
+    '<div style="width:'+seg(c.mine)+';background:#7FB59A"></div>'+
+    '<div style="width:'+seg(c.borrowed)+';background:#C9A86A"></div>'+
+    '<div style="width:'+seg(c.unsure)+';background:#3A3E45"></div>';
+  const pct=Math.round(c.borrowed/total*100);
+  $("#originText").innerHTML = '<span style="color:var(--accent)">'+pct+'%</span> of your nodes are borrowed from outside, not authored by you.';
+}
+
+/* ── filters ── */
+function renderFilters(){
+  $("#filters").innerHTML = Object.entries(KINDS).map(([k,v])=>
+    '<label class="check"><input type="checkbox" data-k="'+k+'" '+(filter[k]?"checked":"")+'>'+
+    '<span class="glyph" style="color:'+v.color+'">'+v.icon+'</span>'+v.label+'s</label>'
+  ).join("");
+  $$('#filters input').forEach(inp=> inp.onchange=()=>{ filter[inp.dataset.k]=inp.checked; renderGraph(); });
+}
+
+/* ── toolbar buttons ── */
+$("#addBtn").onclick = openModal;
+$("#connectBtn").onclick = ()=>{
+  if(linkFrom){ cancelLink(); renderGraph(); return; }
+  if(!selected){ toast("Select a node first, then Connect."); return; }
+  linkFrom = selected; $("#hint").classList.add("show"); $("#connectBtn").textContent="Click a node to connect…";
+  $("#view-map").classList.remove("rail-open"); renderGraph();
+};
+$("#lensBtn").onclick = ()=>{
+  lensOn=!lensOn;
+  $("#lensBtn").textContent = lensOn?"Lens on":"Reveal origins";
+  $("#lensBtn").style.background = lensOn?"var(--accent)":"transparent";
+  $("#lensBtn").style.color = lensOn?"var(--bg)":"var(--accent)";
+  renderGraph();
+};
+$("#resetBtn").onclick = ()=>{
+  if(confirm('Clear "'+S.name+'"? This empties every node and connection on this map (the map itself stays). Export first if you want a backup.')){
+    S.nodes=[]; S.links=[]; selected=null; save(); renderGraph(); toast("Map cleared.");
+  }
+};
+$("#exportBtn").onclick = ()=>{
+  const blob = new Blob([JSON.stringify({name:S.name,nodes:S.nodes,links:S.links},null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  const safe = (S.name||"constellation").replace(/[^a-z0-9]+/gi,"-").replace(/^-|-$/g,"") || "constellation";
+  a.download = safe+"-"+new Date().toISOString().slice(0,10)+".json"; a.click();
+  URL.revokeObjectURL(a.href);
+};
+$("#importBtn").onclick = ()=> $("#fileInput").click();
+$("#fileInput").onchange = e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload = ()=>{ try{ const d=JSON.parse(r.result); if(d.nodes&&d.links){
+      S.nodes=d.nodes; S.links=d.links; if(d.name) S.name=d.name;
+      selected=null; view={scale:1,panX:0,panY:0}; save(); renderMaps(); renderGraph(); applyView();
+      toast("Map imported into \""+S.name+"\".");
+    } else toast("That file doesn't look like a Constellation map."); }catch(err){ toast("Couldn't read that file."); } };
+  r.readAsText(f); e.target.value="";
+};
+
+/* ── Multiple maps: a day, a mood, or a fresh start ── */
+function renderMaps(){
+  $("#mapSelect").innerHTML = DB.maps.map(m=>
+    '<option value="'+m.id+'"'+(m.id===DB.currentId?" selected":"")+'>'+escapeHtml(m.name)+'</option>').join("");
+  $("#delMapBtn").disabled = DB.maps.length<=1;
+}
+function todayName(){ try{ return new Date().toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}); }catch(e){ return "New map"; } }
+function switchMap(id){
+  if(!DB.maps.find(m=>m.id===id)) return;
+  DB.currentId=id; S=currentMap(); selected=null; cancelLink();
+  view={scale:1,panX:0,panY:0}; save(); renderMaps(); renderGraph(); applyView();
+}
+function newMap(){
+  const name = (prompt("Name this map", todayName())||"").trim() || todayName();
+  const m = { id:uid(), name, created:Date.now(), nodes:[], links:[] };
+  DB.maps.push(m); switchMap(m.id); toast('Started "'+name+'".');
+}
+function renameMap(){
+  const name = (prompt("Rename this map", S.name)||"").trim();
+  if(name){ S.name=name; save(); renderMaps(); toast("Renamed."); }
+}
+function deleteMap(){
+  if(DB.maps.length<=1){ toast("Keep at least one map."); return; }
+  if(confirm('Delete "'+S.name+'"? The map and everything on it will be removed. Export first if you want a backup.')){
+    DB.maps = DB.maps.filter(m=>m.id!==S.id);
+    DB.currentId = DB.maps[0].id; S=currentMap(); selected=null;
+    view={scale:1,panX:0,panY:0}; save(); renderMaps(); renderGraph(); applyView();
+    toast("Map deleted.");
+  }
+}
+$("#mapSelect").onchange = e=> switchMap(e.target.value);
+$("#newMapBtn").onclick = newMap;
+$("#renameMapBtn").onclick = renameMap;
+$("#delMapBtn").onclick = deleteMap;
+
+/* ── modal ── */
+function openModal(){
+  $("#view-map").classList.remove("rail-open");   // close mobile drawer if open
+  draft={kind:"thought",origin:"unsure"};
+  $("#modalKind").innerHTML = Object.entries(KINDS).map(([k,v])=>
+    '<button data-k="'+k+'"><div style="font-size:14px">'+v.icon+'</div>'+v.label+'</button>').join("");
+  $("#modalOrigin").innerHTML = Object.entries(ORIGINS).map(([k,v])=>
+    '<button data-k="'+k+'" title="'+v.desc+'">'+v.label+'</button>').join("");
+  syncModalSel();
+  $("#modalText").value="";
+  $("#modalBg").classList.add("show");
+  setTimeout(()=>$("#modalText").focus(),30);
+}
+$("#modalText").addEventListener("keydown", e=>{
+  if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); $("#modalAdd").click(); }
+});
+function syncModalSel(){
+  $$('#modalKind button').forEach(b=>{ b.classList.toggle("on",b.dataset.k===draft.kind);
+    b.style.borderColor = b.dataset.k===draft.kind?KINDS[b.dataset.k].raw:"var(--line)";
+    b.style.color = b.dataset.k===draft.kind?KINDS[b.dataset.k].raw:"var(--dim)"; });
+  $$('#modalOrigin button').forEach(b=> b.classList.toggle("on",b.dataset.k===draft.origin));
+}
+$("#modalKind").onclick = e=>{ const b=e.target.closest("button"); if(b){ draft.kind=b.dataset.k; syncModalSel(); } };
+$("#modalOrigin").onclick = e=>{ const b=e.target.closest("button"); if(b){ draft.origin=b.dataset.k; syncModalSel(); } };
+$("#modalCancel").onclick = ()=>{ pendingPos=null; $("#modalBg").classList.remove("show"); };
+$("#modalBg").onclick = e=>{ if(e.target===$("#modalBg")){ pendingPos=null; $("#modalBg").classList.remove("show"); } };
+$("#modalAdd").onclick = ()=>{
+  const t=$("#modalText").value.trim(); if(!t){ toast("Add a few words first."); return; }
+  addNode(draft.kind, t, draft.origin);
+  $("#modalBg").classList.remove("show");
+};
+function addNode(kind,label,origin){
+  const pos = pendingPos || { x:.45+(Math.random()-.5)*.2, y:.45+(Math.random()-.5)*.2 };
+  pendingPos = null;
+  const n={ id:uid(), kind, label, origin, x:pos.x, y:pos.y };
+  S.nodes.push(n); selected=n.id; save(); renderGraph();
+  return n;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   COMPANION  —  a gentle, NON-CLINICAL reflective listener.
+   Simple pattern-matching: it reflects, asks open questions, and offers to
+   add what you said to your map. It never diagnoses, advises, or assesses.
+   A crisis filter takes priority over everything and surfaces real help.
+   ═══════════════════════════════════════════════════════════════════════ */
+const CRISIS = /\b(suicid\w*|kill (myself|my self)|end (my|it all|my life)|want(ing)? to die|wanna die|don'?t want to (live|be here|exist)|better off dead|hurt(ing)? myself|harm(ing)? myself|self[\s-]?harm|cut(ting)? myself|no reason to live|can'?t go on|cant go on|take my (own )?life)\b/i;
+
+const THEMES = [
+  { key:"growth", kind:"thought", rx:/who (do|am) i|want to be(come)?|best version|my values?|what i (believe|stand for)|purpose|meaning|grow as|change myself|better person|authentic|true to myself|figure (myself|out who)/i,
+    reflect:["That's a question worth taking seriously — and worth answering in your own voice, not borrowing someone else's.","Becoming who you want to be starts exactly here, by asking it out loud."],
+    ask:["Picture the version of you that you most respect — what are they doing differently from you right now?","Whose definition of 'better' are you using here — and is it actually yours?","What's one thing you'd value even if no feed ever rewarded you for it?","If you stopped performing for anyone else, who would you be?"] },
+  { key:"belief", kind:"thought", rx:/everyone (says|thinks|believes)|supposed to|should (think|believe|feel)|what i('?m| am) told|opinion|the algorithm|brainwash|narrative|groupthink|hot take|trend(ing)?|herd|conform/i,
+    reflect:["It's worth pausing on where that belief actually came from.","Sounds like that one might have been handed to you, not chosen by you."],
+    ask:["Did you reason your way to that, or absorb it? Be honest — both are normal.","If you'd never heard anyone else say it, would you still believe it?","What evidence of your own — not someone else's — do you have for it?","Who benefits from you believing this?"] },
+  { key:"comparison", kind:"thought", rx:/compar|behind|everyone else|social media|instagram|tiktok|feed|scroll|jealous|env(y|ious)|left out|fomo|not enough|keeping up/i,
+    reflect:["It sounds like you're measuring yourself against others, and coming up short in your own eyes.","There's a comparison running underneath that — yourself against some standard out there."],
+    ask:["Whose standard is that, when you really look at it — yours, or one you absorbed?","If no one else could ever see it, would this still feel like falling behind?","What did you actually do today that no feed would ever applaud?"] },
+  { key:"anxiety", kind:"emotion", rx:/anx|stress|worried|worry|nervous|panic|overwhelm|pressure|tense|on edge|racing/i,
+    reflect:["That sounds like a lot to carry at once.","There's a real weight in that — the mind running ahead of you."],
+    ask:["When you notice the worry, where do you feel it first?","If you set the whole pile down for a moment, which single piece is heaviest?","What's the worry trying to protect you from?"] },
+  { key:"sad", kind:"emotion", rx:/sad|down|depress|empty|numb|cry|crying|low|unhappy|miser|heavy|grief|lonely heart/i,
+    reflect:["That sounds genuinely heavy. Thank you for putting it into words.","I hear how low this feels right now."],
+    ask:["How long has it been sitting with you like this?","Is there a moment, even a small one, that felt a little lighter recently?","If this feeling could speak, what would it say it needs?"] },
+  { key:"anger", kind:"emotion", rx:/angr|mad|furious|frustrat|annoy|irritat|resent|pissed|fed up/i,
+    reflect:["There's some real frustration in that.","Sounds like something crossed a line that matters to you."],
+    ask:["What's underneath the anger — what got stepped on?","If the anger had a fair point, what would it be?","Who or what is this actually pointed at, when you sit with it?"] },
+  { key:"lonely", kind:"emotion", rx:/lonely|alone|isolat|no one|nobody|disconnect|left out|invisible|unseen/i,
+    reflect:["Feeling unseen like that is hard.","That sense of being on the outside of things sounds painful."],
+    ask:["When did you last feel genuinely connected to someone?","Is there one person you could reach toward, even a little?","What would 'being seen' actually look like for you right now?"] },
+  { key:"sleep", kind:"behavior", rx:/sleep|tired|insomnia|awake|exhaust|1am|2am|3am|can'?t sleep|cant sleep|restless night|up all night/i,
+    reflect:["The nights sound restless.","Sleep slipping away like that takes a toll on everything else."],
+    ask:["What's usually still running in your head when you're lying there?","What tends to happen in the hour before you try to sleep?","Does the tiredness change how the next day feels?"] },
+  { key:"motivation", kind:"behavior", rx:/motivat|lazy|procrastinat|stuck|can'?t start|cant start|focus|distract|productiv|behind on|avoid/i,
+    reflect:["Being stuck like that is frustrating, especially when part of you wants to move.","Sounds like there's a gap between what you intend and what's actually happening."],
+    ask:["What's the very first small step, the one that feels almost too small to count?","Is it that you can't start, or that starting feels unsafe somehow?","When you do get going, what usually gets you there?"] },
+  { key:"relationship", kind:"thought", rx:/friend|roommate|partner|girlfriend|boyfriend|family|mom|dad|mum|parent|relationship|fight|argu|breakup|broke up|ex\b/i,
+    reflect:["Relationships can stir up so much at once.","That sounds like it matters to you a great deal."],
+    ask:["What do you wish the other person understood?","If this went as well as it possibly could, what would that look like?","What part of this is yours to carry, and what part isn't?"] },
+  { key:"self", kind:"thought", rx:/failure|not good enough|worthless|stupid|hate myself|inadequate|i'?m a (mess|loser|failure)|disappoint/i,
+    reflect:["That's a harsh thing to be saying to yourself.","You're speaking about yourself very critically right now."],
+    ask:["Would you say that to a friend in the same spot?","Where did you first learn to judge yourself this way?","Is that a fact, or a feeling wearing the costume of a fact?"] },
+  { key:"positive", kind:"emotion", rx:/happy|good|great|grateful|proud|excited|relief|relieved|better|calm|peace|peaceful|accomplish|content|hopeful/i,
+    reflect:["That's genuinely good to hear.","It's worth pausing on that — the good moments deserve attention too."],
+    ask:["What made that possible? Worth knowing, so you can find it again.","How does that feel in your body right now?","Is this something you'd want more of in your week?"] },
+];
+
+const GENERIC_REFLECT = ["Thanks for sharing that.","I'm with you — go on.","That sounds important.","I hear you."];
+const GENERIC_ASK = ["What's coming up for you as you say that?","Can you tell me a little more about that?","What do you make of it?","If you sat with that for a moment, what would you notice?","What feels most true about that right now?"];
+
+// Follow-up engine: the bot deepens a thread for a few turns, then hands the
+// insight back to the USER (it never concludes for them), then eases off so it
+// never relentlessly probes distress.
+const DEEPEN_ACK = [
+  "Mm. Keep going — what else is in there?",
+  "That's worth staying with. Say a little more about that part.",
+  "I'm following. What sits underneath it?",
+  "There's more there, I think. What comes up next when you let it?",
+  "Okay. And when you sit with that, what else surfaces?",
+];
+const NUDGE = [ // gentle encouragement when an answer is very short
+  "Take your time. What comes up when you sit with it?",
+  "No rush — even a half-formed thought is fine. What's there?",
+  "It's okay if it's fuzzy. What's the first word that fits?",
+];
+const LAND_ACK = [ // acknowledge that THEY did the figuring-out
+  "You've been turning this over out loud — that's the real work, and it's yours.",
+  "You've named a lot in the last few minutes.",
+  "Hearing yourself think through this matters more than any answer I could give.",
+];
+const LAND_Q = [ // hand the insight back to the user — and point it at growth
+  "What's becoming a little clearer as you say it?",
+  "What do you understand now that you didn't before you started typing?",
+  "If you put what this is really about into one honest sentence — yours, not anyone else's — what would it be?",
+  "What feels truer now than it did a few minutes ago?",
+  "Which part of that is genuinely yours, and which part did you pick up from somewhere else?",
+  "What would the best version of you do with what you just realised?",
+  "If you trusted your own judgement here over everyone else's, what would you do next?",
+];
+const OFFRAMP = [ // ease off — don't keep digging into distress
+  "We can stay with this as long as you want — or it might help to set it down by adding it to your map. There's no wrong move here. What feels right?",
+  "You've done some honest thinking. Whatever you've landed on is yours to keep. Want to capture it on your map, or just let it breathe for now?",
+  "I don't have an answer to hand you — but you've been finding your own words, and that's the whole point. Where do you want to leave this for today?",
+];
+let convo = { themeKey:null, depth:0, kind:"thought", askPool:GENERIC_ASK, reflectPool:GENERIC_REFLECT };
+const OPENERS = [
+  "Hi. This is a quiet space to think for yourself — no feed, no crowd, no right answers, nothing saved anywhere but your own device. What's actually on your mind today?",
+  "Hey. I'm not here to tell you what to think — I'm here to help you hear your own mind clearly. What's stirring right now?",
+  "Welcome. Most of the day we run on borrowed opinions and other people's noise. This is a place to find your own signal. Where do you want to start?",
+];
+
+/* Philosophical lenses — tools to think WITH, never doctrines to adopt.
+   Each = essence + an attributed line + reframing questions in that spirit. */
+const LENSES = {
+  stoic: { name:"Stoic", symbol:"▴", color:"#9FB5C9",
+    essence:"Separate what you control from what you don't, and act with virtue on the part that's yours.",
+    quote:"“You have power over your mind — not outside events. Realize this, and you will find strength.” — Marcus Aurelius",
+    asks:[
+      "What part of this is actually within your control, and what part isn't?",
+      "If you let go of the outcome and focused only on acting well, what would you do?",
+      "Will this matter in a year? In ten? What does that tell you about how much to spend on it now?",
+      "What would the wisest, calmest version of you do here — regardless of how it turns out?",
+    ] },
+  existential: { name:"Existentialist", symbol:"✦", color:"#C9A86A",
+    essence:"You are radically free and responsible. Meaning isn't handed to you — you create it. Refuse to live by borrowed scripts.",
+    quote:"“Man is condemned to be free.” — Jean-Paul Sartre",
+    asks:[
+      "Are you genuinely choosing this, or sliding into what's expected of you?",
+      "If you took full responsibility — no excuses, no blaming the crowd — what would change?",
+      "What would it look like to act as who you actually are, not who you're supposed to be?",
+      "Nothing here comes with built-in meaning. What meaning do YOU want to give it?",
+    ] },
+  absurdist: { name:"Absurdist", symbol:"◷", color:"#B59A7F",
+    essence:"The universe owes you no meaning — and you can live fully, even joyfully, anyway, in quiet revolt against that silence.",
+    quote:"“One must imagine Sisyphus happy.” — Albert Camus",
+    asks:[
+      "If none of this is cosmically required, what would you do simply because you choose to?",
+      "Can you hold both 'this may not matter in the grand scheme' and 'I'll give it everything anyway'?",
+      "What would living fully right now look like — instead of waiting for it all to make sense?",
+    ] },
+  buddhist: { name:"Buddhist", symbol:"☸", color:"#9AB59A",
+    essence:"Suffering grows from clinging. See things as they are, with less grasping and less judgment.",
+    quote:"“You yourself, as much as anybody in the entire universe, deserve your love and affection.” — attributed to the Buddha",
+    asks:[
+      "What are you holding onto here that you could loosen your grip on?",
+      "Can you notice this feeling without labeling it good or bad — just watching it pass?",
+      "This too will change. How does it look when you remember it's impermanent?",
+      "Where's the craving here — for something to be other than it is?",
+    ] },
+  aristotelian: { name:"Aristotelian", symbol:"◈", color:"#C9B59A",
+    essence:"You become what you repeatedly do. The good life is built from habits aimed at the mean between extremes.",
+    quote:"“We are what we repeatedly do. Excellence, then, is not an act, but a habit.” — Aristotle (paraphrased)",
+    asks:[
+      "What habit, repeated, would make you the kind of person this situation calls for?",
+      "Where's the golden mean here — between too much and too little?",
+      "Does this move you toward flourishing, or just toward comfort?",
+      "If you did this a hundred times, who would it turn you into?",
+    ] },
+  taoist: { name:"Taoist", symbol:"〇", color:"#9AB5B5",
+    essence:"Stop forcing. There's a natural way things flow — align with it instead of fighting the current.",
+    quote:"“Nature does not hurry, yet everything is accomplished.” — Lao Tzu (attributed)",
+    asks:[
+      "Where are you forcing something that might move more easily if you stopped pushing?",
+      "What would the effortless version of this look like?",
+      "Are you swimming against a current you could instead use?",
+      "What happens if you do less here, not more?",
+    ] },
+};
+const COMPARE = [
+  "Does that fit — or does part of you push back? Either way it's useful: your resistance shows you what you actually believe.",
+  "Try it on, don't swallow it. What does this lens get right about your situation, and what does it miss?",
+  "That's one way to see it, not the way. Tap another lens to compare, or keep what's useful and leave the rest.",
+  "Notice: did this lens change anything, or just rename it? You decide whether it's worth keeping.",
+];
+// Which lens tends to fit which theme — used only when suggestions are ON.
+const THEME_LENS = {
+  growth:"existential", belief:"existential", comparison:"stoic", anxiety:"stoic",
+  sad:"buddhist", anger:"taoist", lonely:"existential", sleep:"taoist",
+  motivation:"aristotelian", relationship:"buddhist", self:"buddhist", positive:"aristotelian",
+};
+
+// no-repeat picker
+const _last = new WeakMap();
+function pick(arr){
+  if(arr.length===1) return arr[0];
+  let i, prev=_last.get(arr);
+  do{ i=Math.floor(Math.random()*arr.length); }while(i===prev);
+  _last.set(arr,i); return arr[i];
+}
+
+let chatHistory = [];
+function detectTheme(text){ for(const t of THEMES){ if(t.rx.test(text)) return t; } return null; }
+
+function botRespond(text){
+  if(CRISIS.test(text)){
+    convo = { themeKey:null, depth:0, kind:"thought", askPool:GENERIC_ASK, reflectPool:GENERIC_REFLECT };
+    addBotMessage(
+      "I'm really glad you told me, and I want you to be safe — but I'm only a simple reflection tool and not able to help with something this serious.\n\nPlease reach out to a real person right now:\n• Emergency: 911 (US) · 000 (Australia) · 112 (Europe)\n• US: call or text 988\n• Australia: Lifeline 13 11 14\n• UK & ROI: Samaritans 116 123\n• Anywhere: findahelpline.com\n\nYou deserve support from someone who can truly be there with you.",
+      {crisis:true});
+    return;
+  }
+
+  const theme = detectTheme(text);
+  const phrase = text.length<=60 ? text : text.slice(0,57).trim()+"…";
+
+  // Thread the conversation: same theme → go deeper; new theme → start fresh;
+  // no theme → treat the reply as continuing the current thread.
+  let isNewTopic = false;
+  if(theme && theme.key===convo.themeKey){
+    convo.depth++;
+  } else if(theme){
+    convo = { themeKey:theme.key, depth:0, kind:theme.kind, askPool:theme.ask, reflectPool:theme.reflect };
+    isNewTopic = true;
+  } else if(convo.themeKey){
+    convo.depth++;
+  } else {
+    convo = { themeKey:null, depth:0, kind:"thought", askPool:GENERIC_ASK, reflectPool:GENERIC_REFLECT };
+  }
+
+  const isShort = text.replace(/[^a-z ]/gi,"").trim().split(/\s+/).filter(Boolean).length <= 3;
+  let body, offer=false;
+
+  if(convo.depth===0){                       // first turn on a topic: reflect + open it
+    body = pick(convo.reflectPool) + "\n\n" + pick(convo.askPool);
+    offer = true;
+  } else if(convo.depth<=2){                  // deepen — draw more out of them
+    body = (isShort ? pick(NUDGE) : pick(DEEPEN_ACK)) + "\n\n" + pick(convo.askPool);
+  } else if(convo.depth===3){                 // hand the insight back to them
+    body = pick(LAND_ACK) + "\n\n" + pick(LAND_Q);
+    offer = true;
+  } else {                                    // ease off — never keep probing distress
+    body = pick(OFFRAMP);
+    offer = true;
+    convo.depth = 0;                          // let a fresh thread build if they keep going
+  }
+
+  // Optional, opt-in lens nudge: only when the user turned suggestions ON,
+  // only on the first turn of a new topic, and only if a lens clearly fits.
+  let opts = offer ? { addPhrase:phrase, addKind:convo.kind } : {};
+  if(settings.lensSuggest && isNewTopic && THEME_LENS[theme.key]){
+    const L = LENSES[THEME_LENS[theme.key]];
+    opts.suggest = { key:THEME_LENS[theme.key], name:L.name, symbol:L.symbol, color:L.color };
+  }
+  addBotMessage(body, opts);
+}
+
+/* chat rendering */
+const chatScroll = $("#chatScroll");
+function addBotMessage(text, opts={}){
+  chatHistory.push({role:"bot",text});
+  const m = document.createElement("div");
+  m.className = "msg bot" + (opts.crisis?" crisis":"") + (opts.lens?" lens":"");
+  if(opts.lens){
+    const L = opts.lens;
+    m.style.borderLeft = "3px solid "+L.color;
+    m.innerHTML =
+      '<div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:'+L.color+';margin-bottom:6px">'+L.symbol+' '+escapeHtml(L.name)+' lens</div>'+
+      '<div style="color:var(--dim);font-size:12.5px;margin-bottom:12px;line-height:1.5">'+escapeHtml(L.essence)+'</div>'+
+      '<div style="margin-bottom:12px">'+escapeHtml(text)+'</div>'+
+      '<div style="font-family:var(--serif);font-size:12.5px;color:var(--faint);border-left:2px solid '+L.color+'55;padding-left:10px;margin-bottom:12px;line-height:1.5">'+escapeHtml(L.quote)+'</div>'+
+      '<div style="color:var(--dim);font-size:12.5px;line-height:1.5">'+escapeHtml(L.compare)+'</div>';
+  } else {
+    m.textContent = text;
+  }
+  if(opts.addPhrase){
+    const wrap=document.createElement("div"); wrap.className="addmap";
+    const b=document.createElement("button");
+    b.textContent = "+ Add “"+ (opts.addPhrase.length>28?opts.addPhrase.slice(0,28)+"…":opts.addPhrase) +"” to map";
+    b.onclick=()=>{ addNode(opts.addKind, opts.addPhrase, "unsure"); toast("Added to your map."); b.disabled=true; b.textContent="Added ✓"; b.style.opacity=.6; };
+    wrap.appendChild(b); m.appendChild(wrap);
+  }
+  if(opts.suggest){
+    const wrap=document.createElement("div"); wrap.className="addmap";
+    const b=document.createElement("button");
+    b.textContent = opts.suggest.symbol + " Try the " + opts.suggest.name + " lens";
+    b.style.borderColor = opts.suggest.color; b.style.color = opts.suggest.color;
+    b.onclick=()=>{ applyLens(opts.suggest.key); b.disabled=true; b.style.opacity=.6; b.textContent="Applied ✓"; };
+    wrap.appendChild(b); m.appendChild(wrap);
+  }
+  chatScroll.appendChild(m); chatScroll.scrollTop=chatScroll.scrollHeight;
+}
+function addMyMessage(text){
+  chatHistory.push({role:"me",text});
+  const m=document.createElement("div"); m.className="msg me"; m.textContent=text;
+  chatScroll.appendChild(m); chatScroll.scrollTop=chatScroll.scrollHeight;
+}
+function showTyping(){
+  removeTyping();
+  const m=document.createElement("div"); m.className="msg bot typing"; m.id="typingMsg"; m.textContent="· · ·";
+  chatScroll.appendChild(m); chatScroll.scrollTop=chatScroll.scrollHeight;
+}
+function removeTyping(){ const t=$("#typingMsg"); if(t) t.remove(); }
+function sendChat(){
+  const t=$("#chatInput").value.trim(); if(!t) return;
+  addMyMessage(t); $("#chatInput").value="";
+  showTyping();
+  // a brief, human-feeling pause before the reply
+  setTimeout(()=>{ removeTyping(); botRespond(t); }, 600+Math.random()*500);
+}
+$("#chatSend").onclick = sendChat;
+$("#chatInput").addEventListener("keydown", e=>{ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); sendChat(); } });
+
+const STARTERS = ["I keep comparing myself to people online","I'm not sure what I actually believe anymore","I feel behind everyone","Who do I want to become?","Something good happened today"];
+$("#chatChips").innerHTML = STARTERS.map(s=>'<button class="chip">'+s+'</button>').join("");
+$$('#chatChips .chip').forEach(c=> c.onclick=()=>{ $("#chatInput").value=c.textContent; sendChat(); });
+
+/* ── Lenses: pick & compare ── */
+function gotoView(name){ const b=document.querySelector('nav button[data-view="'+name+'"]'); if(b) b.click(); }
+function applyLens(key){
+  const L = LENSES[key]; if(!L) return;
+  addBotMessage(pick(L.asks), { lens:{ name:L.name, symbol:L.symbol, color:L.color, essence:L.essence, quote:L.quote, compare:pick(COMPARE) } });
+}
+function renderLenses(){
+  $("#lensBar").innerHTML = '<span class="lenslabel">Try a lens:</span>' +
+    Object.entries(LENSES).map(([k,l])=>'<button class="lenschip" data-k="'+k+'" style="--lc:'+l.color+'">'+l.symbol+' '+l.name+'</button>').join("") +
+    '<span style="flex:1;min-width:12px"></span>' +
+    '<button class="lenschip" id="suggestToggle" title="When on, the companion may occasionally point out a fitting lens — still opt-in.">'+
+      (settings.lensSuggest ? '◉ Suggestions: on' : '○ Suggestions: off')+'</button>';
+  $$('#lensBar .lenschip[data-k]').forEach(b=> b.onclick=()=>applyLens(b.dataset.k));
+  $("#suggestToggle").onclick = ()=>{
+    settings.lensSuggest = !settings.lensSuggest; saveSettings(); renderLenses();
+    toast(settings.lensSuggest ? "Companion will gently suggest fitting lenses." : "Lenses are now fully user-initiated.");
+  };
+
+  $("#lensCards").innerHTML = Object.entries(LENSES).map(([k,l])=>
+    '<div class="lenscard">'+
+      '<h3 style="color:'+l.color+'">'+l.symbol+'  '+escapeHtml(l.name)+'</h3>'+
+      '<p style="margin:0 0 10px">'+escapeHtml(l.essence)+'</p>'+
+      '<p class="muted" style="margin:0 0 12px"><b style="color:var(--text)">It asks you:</b> “'+escapeHtml(l.asks[0])+'”</p>'+
+      '<div style="font-family:var(--serif);font-size:13px;color:var(--faint);border-left:2px solid '+l.color+';padding-left:12px;margin-bottom:14px;line-height:1.5">'+escapeHtml(l.quote)+'</div>'+
+      '<button class="btn ghost small" data-k="'+k+'" style="width:auto;padding:7px 14px">Apply in Companion →</button>'+
+    '</div>').join("");
+  $$('#lensCards .btn').forEach(b=> b.onclick=()=>{ gotoView("companion"); setTimeout(()=>applyLens(b.dataset.k),60); });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   helpers + boot
+   ═══════════════════════════════════════════════════════════════════════ */
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+let toastT;
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),2200); }
+
+window.addEventListener("resize", ()=>{ if($("#view-map").classList.contains("active")) renderGraph(); });
+
+renderFilters();
+renderLenses();
+renderMaps();
+renderGraph();
+applyView();
+addBotMessage(pick(OPENERS));
+</script>
+</body>
+</html>
