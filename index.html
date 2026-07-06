@@ -205,7 +205,8 @@
     #app{padding-bottom:calc(48px + env(safe-area-inset-bottom))}
 
     /* left rail → slide-in drawer, opened with the ☰ button */
-    .railToggle{display:block}
+    .railToggle{display:block;width:46px;height:42px;font-size:18px}
+    .zoomctl button{width:40px;height:40px}
     aside.rail{position:fixed;top:0;bottom:0;left:0;width:min(300px,82vw);z-index:45;
       transform:translateX(-105%);transition:transform .25s ease;
       border-right:1px solid var(--line);box-shadow:8px 0 30px rgba(0,0,0,.5);
@@ -640,7 +641,7 @@ window.addEventListener("pointerup", ()=>{ if(dragId){ dragId=null; save(); $$("
 // Pan by dragging the empty background; click (no drag) deselects.
 let pan = null;
 stage.addEventListener("pointerdown", e=>{
-  if(e.target.closest(".node") || e.target.closest(".zoomctl")) return;
+  if(e.target.closest(".node") || e.target.closest(".zoomctl") || e.target.closest(".railToggle")) return;
   if(linkFrom){ cancelLink(); renderGraph(); return; }   // click empty space cancels connecting
   pan = { sx:e.clientX, sy:e.clientY, px:view.panX, py:view.panY, moved:false };
 });
@@ -670,8 +671,15 @@ $("#zoomIn").onclick   = ()=>{ const d=dims(); zoomAt(d.w/2, d.h/2, 1.2); };
 $("#zoomOut").onclick  = ()=>{ const d=dims(); zoomAt(d.w/2, d.h/2, 1/1.2); };
 $("#zoomReset").onclick= ()=>{ view={scale:1,panX:0,panY:0}; applyView(); };
 
-// Mobile drawer (☰) for the left rail.
-$("#railToggle").onclick = ()=> $("#view-map").classList.add("rail-open");
+// Mobile drawer (☰) for the left rail. Opens on pointerup (not click) so it
+// works reliably under touch, and stops the tap from reaching the map's
+// pan/pinch handlers entirely.
+$("#railToggle").addEventListener("pointerdown", e=>{ e.stopPropagation(); });
+$("#railToggle").addEventListener("pointerup", e=>{
+  // no stopPropagation here: window-level pointerup cleanup (pinch tracker) must still run
+  $("#view-map").classList.add("rail-open");
+});
+$("#railToggle").onclick = e=>{ e.stopPropagation(); $("#view-map").classList.add("rail-open"); };
 $("#railBackdrop").onclick = ()=> $("#view-map").classList.remove("rail-open");
 
 // Pinch-to-zoom on touch devices: track two pointers on the stage.
@@ -703,7 +711,7 @@ window.addEventListener("pointercancel", e=>{ ptrs.delete(e.pointerId); if(ptrs.
 // Double-click empty space to add a node right where you clicked.
 let pendingPos = null;
 stage.addEventListener("dblclick", e=>{
-  if(e.target.closest(".node") || e.target.closest(".zoomctl") || linkFrom) return;
+  if(e.target.closest(".node") || e.target.closest(".zoomctl") || e.target.closest(".railToggle") || linkFrom) return;
   const d = dims(), r = stage.getBoundingClientRect();
   const cx = (e.clientX - r.left - view.panX)/view.scale;
   const cy = (e.clientY - r.top  - view.panY)/view.scale;
