@@ -448,21 +448,7 @@ const ORIGINS = {
   unsure:   { label:"Unsure",   desc:"Haven't examined where this came from" },
 };
 
-// First-time seed so the app isn't empty. Cleared once the user edits their map.
-const SEED = {
-  nodes:[
-    { id:"n1", kind:"behavior", label:"Scrolled until 1am",            origin:"mine",     x:.30, y:.30 },
-    { id:"n2", kind:"emotion",  label:"Felt behind everyone",          origin:"borrowed", x:.52, y:.22 },
-    { id:"n3", kind:"thought",  label:"I should have it figured out",  origin:"borrowed", x:.70, y:.34 },
-    { id:"n4", kind:"behavior", label:"Skipped the gym",               origin:"mine",     x:.24, y:.55 },
-    { id:"n5", kind:"emotion",  label:"Restless, couldn't focus",      origin:"mine",     x:.45, y:.52 },
-    { id:"n6", kind:"thought",  label:"Everyone online seems certain", origin:"borrowed", x:.66, y:.60 },
-    { id:"n7", kind:"behavior", label:"Texted roommate to clear air",  origin:"mine",     x:.40, y:.78 },
-    { id:"n8", kind:"emotion",  label:"Relief after talking",          origin:"mine",     x:.62, y:.80 },
-    { id:"n9", kind:"thought",  label:"Comparison is the real problem",origin:"mine",     x:.82, y:.70 },
-  ],
-  links:[["n1","n2"],["n2","n3"],["n3","n6"],["n6","n2"],["n4","n5"],["n5","n1"],["n5","n6"],["n7","n8"],["n8","n9"],["n9","n6"],["n2","n5"]],
-};
+// New users start with a completely blank map — a fresh sheet, nothing pre-placed.
 
 /* ═══════════════════════════════════════════════════════════════════════
    STATE  +  persistence
@@ -491,10 +477,9 @@ function loadDB(){
       return { maps:[{ id, name:"My first map", created:Date.now(), nodes:o.nodes, links:o.links||[] }], currentId:id };
     }}
   }catch(e){}
-  // 3) fresh seed
+  // 3) brand-new user: one empty map, a fresh sheet
   const id = uid();
-  return { maps:[{ id, name:"My first map", created:Date.now(),
-    nodes:JSON.parse(JSON.stringify(SEED.nodes)), links:JSON.parse(JSON.stringify(SEED.links)) }], currentId:id };
+  return { maps:[{ id, name:"My first map", created:Date.now(), nodes:[], links:[] }], currentId:id };
 }
 function save(){ try{ localStorage.setItem(DBKEY, JSON.stringify(DB)); }catch(e){} }
 
