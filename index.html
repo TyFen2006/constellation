@@ -126,6 +126,7 @@
 
   aside.inspector{width:256px;border-left:1px solid var(--line);padding:18px 16px;
     background:var(--panel);overflow-y:auto;flex:none}
+  .sheet-head{display:none} /* mobile-only peek bar; hidden on desktop */
   .insp-kind{display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:11px;
     letter-spacing:.1em;text-transform:uppercase}
   .insp-label{font-family:var(--serif);font-size:18px;line-height:1.35;margin-bottom:16px;
@@ -214,12 +215,22 @@
     #view-map.rail-open aside.rail{transform:none}
     #view-map.rail-open .rail-backdrop{display:block}
 
-    /* inspector → bottom sheet, appears when a node is selected */
+    /* inspector → bottom sheet: touching a node shows only a slim "peek" bar
+       with the node's name; swipe up (or tap) to expand the full details */
     aside.inspector{position:fixed;left:0;right:0;bottom:calc(48px + env(safe-area-inset-bottom));
-      top:auto;width:auto;max-height:44vh;z-index:30;
+      top:auto;width:auto;z-index:30;padding:0;overflow:hidden;
       border-left:none;border-top:1px solid var(--line);border-radius:14px 14px 0 0;
       transform:translateY(115%);transition:transform .25s ease;box-shadow:0 -8px 30px rgba(0,0,0,.5)}
     #view-map.has-sel aside.inspector{transform:none}
+    .sheet-head{display:block;padding:8px 16px 10px;cursor:pointer;user-select:none;touch-action:none}
+    .sheet-pill{width:44px;height:4px;border-radius:2px;background:#3A3E45;margin:0 auto 8px}
+    .sheet-trow{display:flex;align-items:center;gap:10px}
+    .sheet-trow .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      font-family:var(--serif);font-size:15px;color:var(--text)}
+    .sheet-chev{color:var(--faint);font-size:13px;transition:transform .25s}
+    aside.inspector.expanded .sheet-chev{transform:rotate(180deg)}
+    .sheet-body{max-height:0;overflow:hidden;padding:0 16px;transition:max-height .25s ease}
+    aside.inspector.expanded .sheet-body{max-height:38vh;overflow-y:auto;padding-bottom:16px}
 
     /* chat: bigger touch targets; 16px inputs stop iOS auto-zoom on focus */
     .msg{max-width:86%}
@@ -735,10 +746,14 @@ document.addEventListener("keydown", e=>{
 function cancelLink(){ linkFrom=null; $("#hint").classList.remove("show"); $("#connectBtn").textContent="Connect selected →"; }
 
 /* ── inspector ── */
+let sheetOpen = false, lastInspected = null;   // mobile bottom-sheet peek/expand state
 function renderInspector(){
   const el = $("#inspector");
   const n = S.nodes.find(x=>x.id===selected);
   $("#view-map").classList.toggle("has-sel", !!n);   // mobile: show/hide bottom sheet
+  if(n && n.id!==lastInspected){ sheetOpen=false; lastInspected=n.id; }  // new node → start peeked
+  if(!n) lastInspected=null;
+  el.classList.toggle("expanded", !!n && sheetOpen);
   if(!n){
     el.innerHTML =
       '<div style="font-family:var(--serif);font-size:16px;color:var(--dim);margin-bottom:12px">Nothing selected</div>'+
@@ -752,6 +767,13 @@ function renderInspector(){
   const obg = n.origin==="borrowed"?"#C9A86A":n.origin==="mine"?"#2B3530":"#22262C";
   const oco = n.origin==="borrowed"?"#0B0D10":n.origin==="mine"?"#7FB59A":"#9A9892";
   el.innerHTML =
+    '<div class="sheet-head" id="sheetHead">'+
+      '<div class="sheet-pill"></div>'+
+      '<div class="sheet-trow"><span style="color:'+k.color+'">'+k.icon+'</span>'+
+        '<span class="t">'+escapeHtml(n.label)+'</span>'+
+        '<span class="sheet-chev">⌃</span></div>'+
+    '</div>'+
+    '<div class="sheet-body">'+
     '<div class="insp-kind" style="color:'+k.color+'"><span>'+k.icon+'</span><span>'+k.label+'</span></div>'+
     '<div class="insp-label" id="inspLabel" contenteditable="true" spellcheck="false">'+escapeHtml(n.label)+'</div>'+
     '<div class="insp-row"><span class="k">Origin</span>'+
@@ -761,7 +783,21 @@ function renderInspector(){
     '<div style="margin:8px 0 18px">'+
       (neighbours.length?neighbours.map(nb=>'<div class="neighbour"><span style="color:'+KINDS[nb.kind].color+'">'+KINDS[nb.kind].icon+'</span><span style="flex:1">'+escapeHtml(nb.label)+'</span><button class="unlink" data-nb="'+nb.id+'" title="Remove this connection">×</button></div>').join(''):'<span style="font-size:12px;color:var(--faint)">No connections yet.</span>')+
     '</div>'+
-    '<button class="btn warn small" id="delNode">Remove node</button>';
+    '<button class="btn warn small" id="delNode">Remove node</button>'+
+    '</div>';
+
+  // Peek bar: swipe up → expand, swipe down → collapse, tap → toggle.
+  const head = $("#sheetHead", el);
+  let touchY = null;
+  head.addEventListener("pointerdown", e=>{ touchY=e.clientY; e.stopPropagation(); });
+  head.addEventListener("pointerup", e=>{
+    if(touchY==null) return;
+    const dy = e.clientY - touchY; touchY=null;
+    if(dy < -15) sheetOpen = true;
+    else if(dy > 15) sheetOpen = false;
+    else sheetOpen = !sheetOpen;
+    el.classList.toggle("expanded", sheetOpen);
+  });
 
   $$(".unlink", el).forEach(b=> b.onclick=()=>{
     const nbId=b.dataset.nb;
