@@ -1,0 +1,25 @@
+{
+  "name": "A rough week (demo)",
+  "nodes": [
+    { "id": "d1",  "kind": "behavior", "label": "Scrolled until 2am",                  "origin": "mine",     "x": 0.24, "y": 0.20 },
+    { "id": "d2",  "kind": "emotion",  "label": "Felt behind everyone",                "origin": "borrowed", "x": 0.42, "y": 0.14 },
+    { "id": "d3",  "kind": "thought",  "label": "Everyone my age has it figured out",  "origin": "borrowed", "x": 0.62, "y": 0.20 },
+    { "id": "d4",  "kind": "thought",  "label": "Success = followers + internships",   "origin": "borrowed", "x": 0.80, "y": 0.30 },
+    { "id": "d5",  "kind": "emotion",  "label": "Anxious before the exam",             "origin": "mine",     "x": 0.14, "y": 0.42 },
+    { "id": "d6",  "kind": "behavior", "label": "Skipped the gym twice",               "origin": "mine",     "x": 0.30, "y": 0.52 },
+    { "id": "d7",  "kind": "emotion",  "label": "Restless, couldn't focus",            "origin": "mine",     "x": 0.46, "y": 0.42 },
+    { "id": "d8",  "kind": "thought",  "label": "Comparison is the real problem",      "origin": "mine",     "x": 0.66, "y": 0.50 },
+    { "id": "d9",  "kind": "behavior", "label": "Deleted Instagram for the weekend",   "origin": "mine",     "x": 0.84, "y": 0.60 },
+    { "id": "d10", "kind": "emotion",  "label": "Calmer by Sunday",                    "origin": "mine",     "x": 0.70, "y": 0.76 },
+    { "id": "d11", "kind": "behavior", "label": "Called grandma",                      "origin": "mine",     "x": 0.50, "y": 0.84 },
+    { "id": "d12", "kind": "emotion",  "label": "Proud after helping my roommate",     "origin": "mine",     "x": 0.30, "y": 0.76 },
+    { "id": "d13", "kind": "thought",  "label": "I want to build things that matter",  "origin": "mine",     "x": 0.12, "y": 0.64 },
+    { "id": "d14", "kind": "thought",  "label": "My worth is my grades",               "origin": "borrowed", "x": 0.08, "y": 0.26 }
+  ],
+  "links": [
+    ["d1","d2"], ["d2","d3"], ["d3","d4"], ["d14","d2"], ["d5","d14"],
+    ["d5","d6"], ["d6","d7"], ["d7","d1"], ["d7","d2"],
+    ["d8","d3"], ["d8","d9"], ["d9","d10"], ["d10","d11"],
+    ["d11","d12"], ["d12","d13"], ["d13","d8"]
+  ]
+}
