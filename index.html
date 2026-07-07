@@ -172,6 +172,18 @@
   .lenscard{border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:14px;background:var(--panel)}
   .lenscard h3{margin:0 0 6px;font-family:var(--serif);font-weight:400;font-size:18px}
 
+  /* ── PATTERNS view ──────────────────────────────────────── */
+  .pgrid{display:flex;flex-direction:column;gap:14px}
+  .pcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+  .pcard .lbl{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#6B6964;margin-bottom:10px}
+  .pcard .big{font-family:var(--serif);font-size:19px;color:var(--text);line-height:1.3}
+  .pbar{display:flex;height:10px;border-radius:5px;overflow:hidden;border:1px solid var(--line);margin:2px 0 10px}
+  .pbar div{height:100%}
+  .pkey{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--dim)}
+  .pkey span{display:flex;align-items:center;gap:6px}
+  .pkey i{width:9px;height:9px;border-radius:2px;display:inline-block;flex:none}
+  .pobs{font-size:13.5px;color:#C8C6C0;line-height:1.65;margin:0}
+
   /* ── ABOUT view ─────────────────────────────────────────── */
   .doc{flex:1;overflow-y:auto;padding:30px 36px}
   .doc .inner{max-width:680px;margin:0 auto}
@@ -204,7 +216,7 @@
     nav{position:fixed;bottom:0;left:0;right:0;z-index:46;background:var(--panel);
       border-top:1px solid var(--line);justify-content:space-around;
       padding:6px 8px calc(6px + env(safe-area-inset-bottom))}
-    nav button{flex:1;padding:9px 2px;font-size:11.5px;text-align:center}
+    nav button{flex:1;padding:9px 1px;font-size:10.5px;letter-spacing:.01em;text-align:center}
     #app{padding-bottom:calc(48px + env(safe-area-inset-bottom))}
 
     /* left rail → slide-in drawer, opened with the ☰ button */
@@ -282,9 +294,10 @@
     </div>
     <nav>
       <button data-view="map" class="active">Map</button>
+      <button data-view="patterns">Patterns</button>
       <button data-view="companion">Companion</button>
       <button data-view="lenses">Lenses</button>
-      <button data-view="about">About &amp; Safety</button>
+      <button data-view="about">About</button>
     </nav>
   </header>
 
@@ -296,6 +309,7 @@
           <div class="sec-title">Add</div>
           <button class="btn" id="addBtn">+ New node</button>
           <button class="btn ghost small" id="connectBtn" style="margin-top:8px">Connect selected →</button>
+          <button class="btn" id="reflectBtn" style="margin-top:8px;background:transparent;border-color:var(--accentDim);color:var(--accent)">✦ Reflect on my map</button>
         </div>
 
         <div>
@@ -383,6 +397,18 @@
           <p>Try a lens on — don't swallow it. The goal is never to become "a Stoic" or "an Existentialist" (that's just a fancier crowd to follow). The goal is to borrow a perspective deliberately, notice where it fits and where it doesn't, and end up with a view that's genuinely yours. Open the <b>Companion</b> and tap a lens to apply it to whatever you're thinking about — then tap another to compare. Prefer a hint? Flip on <b>Suggestions</b> in the Companion's lens bar and it'll occasionally point out a fitting lens — still opt-in; nothing applies unless you tap it.</p>
         </div>
         <div id="lensCards"></div>
+      </div></div>
+    </section>
+
+    <!-- ══════════ PATTERNS ══════════ -->
+    <section class="view" id="view-patterns">
+      <div class="doc"><div class="inner">
+        <h2>What your map is telling you</h2>
+        <p class="muted" style="margin-bottom:20px">These are <b>observations, not assessments</b>. Constellation reflects your own connections back to you — it doesn't diagnose, label, or prescribe. Read them as questions to sit with, not answers.</p>
+        <div class="pgrid" id="patternsBody"></div>
+        <div style="margin-top:24px;font-size:12px;color:var(--faint);line-height:1.7;border-top:1px solid var(--lineSoft);padding-top:16px">
+          Constellation reflects — it doesn't treat. If something here weighs on you, a doctor, counsellor, or someone you trust is the right place to take it. In crisis, call or text 988 (US), Lifeline 13 11 14 (AU), Samaritans 116 123 (UK), or find a local line at findahelpline.com.
+        </div>
       </div></div>
     </section>
 
@@ -541,6 +567,7 @@ $$("nav button").forEach(b=> b.onclick = ()=>{
   $$(".view").forEach(v=>v.classList.remove("active"));
   $("#view-"+b.dataset.view).classList.add("active");
   if(b.dataset.view==="map") setTimeout(renderGraph,0);
+  if(b.dataset.view==="patterns") renderPatterns();
 });
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -878,6 +905,7 @@ $("#connectBtn").onclick = ()=>{
   linkFrom = selected; $("#hint").classList.add("show"); $("#connectBtn").textContent="Click a node to connect…";
   $("#view-map").classList.remove("rail-open"); renderGraph();
 };
+$("#reflectBtn").onclick = ()=>{ $("#view-map").classList.remove("rail-open"); gotoView("patterns"); };
 $("#lensBtn").onclick = ()=>{
   lensOn=!lensOn;
   $("#lensBtn").textContent = lensOn?"Lens on":"Reveal origins";
@@ -998,16 +1026,16 @@ const THEMES = [
   { key:"belief", kind:"thought", rx:/everyone (says|thinks|believes)|supposed to|should (think|believe|feel)|what i('?m| am) told|opinion|the algorithm|brainwash|narrative|groupthink|hot take|trend(ing)?|herd|conform/i,
     reflect:["It's worth pausing on where that belief actually came from.","Sounds like that one might have been handed to you, not chosen by you."],
     ask:["Did you reason your way to that, or absorb it? Be honest — both are normal.","If you'd never heard anyone else say it, would you still believe it?","What evidence of your own — not someone else's — do you have for it?","Who benefits from you believing this?"] },
-  { key:"comparison", kind:"thought", rx:/compar|behind|everyone else|social media|instagram|tiktok|feed|scroll|jealous|env(y|ious)|left out|fomo|not enough|keeping up/i,
+  { key:"comparison", kind:"thought", rx:/compar|behind|everyone else|social media|instagram|tiktok|\bfeed\b|doomscroll|jealous|env(y|ious)|fomo|not enough|keeping up/i,
     reflect:["It sounds like you're measuring yourself against others, and coming up short in your own eyes.","There's a comparison running underneath that — yourself against some standard out there."],
     ask:["Whose standard is that, when you really look at it — yours, or one you absorbed?","If no one else could ever see it, would this still feel like falling behind?","What did you actually do today that no feed would ever applaud?"] },
-  { key:"anxiety", kind:"emotion", rx:/anx|stress|worried|worry|nervous|panic|overwhelm|pressure|tense|on edge|racing/i,
+  { key:"anxiety", kind:"emotion", rx:/anx|stress|worried|worry|nervous|panic|pressure|tense|on edge|racing|overthink|spiral|freaking out|can'?t stop thinking/i,
     reflect:["That sounds like a lot to carry at once.","There's a real weight in that — the mind running ahead of you."],
     ask:["When you notice the worry, where do you feel it first?","If you set the whole pile down for a moment, which single piece is heaviest?","What's the worry trying to protect you from?"] },
-  { key:"sad", kind:"emotion", rx:/sad|down|depress|empty|numb|cry|crying|low|unhappy|miser|heavy|grief|lonely heart/i,
+  { key:"sad", kind:"emotion", rx:/sad|down|depress|empty|numb|cry|crying|low|unhappy|miser|heavy|grief|hopeless|hurting|\bblue\b|tearful|gutted|devastated|heartbroken/i,
     reflect:["That sounds genuinely heavy. Thank you for putting it into words.","I hear how low this feels right now."],
     ask:["How long has it been sitting with you like this?","Is there a moment, even a small one, that felt a little lighter recently?","If this feeling could speak, what would it say it needs?"] },
-  { key:"anger", kind:"emotion", rx:/angr|mad|furious|frustrat|annoy|irritat|resent|pissed|fed up/i,
+  { key:"anger", kind:"emotion", rx:/angr|mad|furious|frustrat|annoy|irritat|resent|pissed|fed up|unfair|disrespect|\brage\b|hate that/i,
     reflect:["There's some real frustration in that.","Sounds like something crossed a line that matters to you."],
     ask:["What's underneath the anger — what got stepped on?","If the anger had a fair point, what would it be?","Who or what is this actually pointed at, when you sit with it?"] },
   { key:"lonely", kind:"emotion", rx:/lonely|alone|isolat|no one|nobody|disconnect|left out|invisible|unseen/i,
@@ -1016,18 +1044,51 @@ const THEMES = [
   { key:"sleep", kind:"behavior", rx:/sleep|tired|insomnia|awake|exhaust|1am|2am|3am|can'?t sleep|cant sleep|restless night|up all night/i,
     reflect:["The nights sound restless.","Sleep slipping away like that takes a toll on everything else."],
     ask:["What's usually still running in your head when you're lying there?","What tends to happen in the hour before you try to sleep?","Does the tiredness change how the next day feels?"] },
-  { key:"motivation", kind:"behavior", rx:/motivat|lazy|procrastinat|stuck|can'?t start|cant start|focus|distract|productiv|behind on|avoid/i,
+  { key:"motivation", kind:"behavior", rx:/motivat|lazy|procrastinat|stuck|can'?t start|cant start|focus|distract|productiv|behind on|avoid|no energy|give up|putting off|can'?t be bothered/i,
     reflect:["Being stuck like that is frustrating, especially when part of you wants to move.","Sounds like there's a gap between what you intend and what's actually happening."],
     ask:["What's the very first small step, the one that feels almost too small to count?","Is it that you can't start, or that starting feels unsafe somehow?","When you do get going, what usually gets you there?"] },
-  { key:"relationship", kind:"thought", rx:/friend|roommate|partner|girlfriend|boyfriend|family|mom|dad|mum|parent|relationship|fight|argu|breakup|broke up|ex\b/i,
+  { key:"relationship", kind:"thought", rx:/friend|roommate|partner|girlfriend|boyfriend|family|mom|dad|mum|parent|relationship|fight|argu|breakup|broke up|ex\b|wife|husband|sister|brother|crush|marriage|divorce/i,
     reflect:["Relationships can stir up so much at once.","That sounds like it matters to you a great deal."],
     ask:["What do you wish the other person understood?","If this went as well as it possibly could, what would that look like?","What part of this is yours to carry, and what part isn't?"] },
-  { key:"self", kind:"thought", rx:/failure|not good enough|worthless|stupid|hate myself|inadequate|i'?m a (mess|loser|failure)|disappoint/i,
+  { key:"self", kind:"thought", rx:/failure|not good enough|worthless|stupid|hate myself|inadequate|i'?m a (mess|loser|failure)|disappoint|useless|hate who i am/i,
     reflect:["That's a harsh thing to be saying to yourself.","You're speaking about yourself very critically right now."],
     ask:["Would you say that to a friend in the same spot?","Where did you first learn to judge yourself this way?","Is that a fact, or a feeling wearing the costume of a fact?"] },
   { key:"positive", kind:"emotion", rx:/happy|good|great|grateful|proud|excited|relief|relieved|better|calm|peace|peaceful|accomplish|content|hopeful/i,
     reflect:["That's genuinely good to hear.","It's worth pausing on that — the good moments deserve attention too."],
     ask:["What made that possible? Worth knowing, so you can find it again.","How does that feel in your body right now?","Is this something you'd want more of in your week?"] },
+  { key:"decision", kind:"thought", rx:/should i\b|don'?t know what to do|not sure what to do|torn between|torn about|can'?t decide|hard to decide|\bdecision\b|which (option|one|path|way)|stuck between|choose between|choice between|dilemma|two minds/i,
+    reflect:["It sounds like you're standing at a fork, and both paths pull at you.","There's a real weight in not knowing which way to go."],
+    ask:["If you strip away what other people would think, which way do you lean?","What are you actually afraid will happen if you choose wrong?","Which option does the version of you a year from now hope you picked?","What does this really come down to, underneath the details?"] },
+  { key:"future", kind:"thought", rx:/the future|my future|what if|uncertain|uncertainty|the unknown|don'?t know where|where (this|it|my life) is going|after (uni|college|school|graduation)|down the line|long[- ]term|five years/i,
+    reflect:["The not-knowing can be the hardest part of it.","Looking down an uncertain road like that is genuinely uneasy."],
+    ask:["How much of this is actually in your hands right now, and how much simply isn't yet?","What's one small thing this week your future self would thank you for?","Is it the future itself that's heavy, or the pressure to have it all figured out already?"] },
+  { key:"work", kind:"thought", rx:/\bwork\b|\bjob\b|school|class(es)?|study(ing)?|exam|\btest\b|grades?|assignment|deadline|career|\buni\b|college|professor|\bboss\b|coworker|workload|semester|homework/i,
+    reflect:["That part of life sounds like it's taking a lot out of you right now.","There's real pressure sitting behind that."],
+    ask:["Whose expectations are you carrying here — your own, or someone else's?","If this went well, what would it actually change for you?","What part of this genuinely matters to you, and what part are you doing because you feel you should?"] },
+  { key:"guilt", kind:"emotion", rx:/guilt|guilty|ashamed|\bshame\b|regret|should have|shouldn'?t have|my fault|blame myself|embarrassed|feel bad (about|for)/i,
+    reflect:["You're carrying something heavy about how it went.","That sounds like guilt sitting with you."],
+    ask:["If a friend had done the exact same thing, would you judge them as harshly as you're judging yourself?","What would making it right look like — and is any of that still possible?","Is this guilt pointing at something you'd genuinely do differently, or just punishing you?"] },
+  { key:"overwhelm", kind:"emotion", rx:/overwhelm|too much (going on|to|right now|on my)|can'?t cope|can'?t keep up|drowning|spread (too )?thin|burn(t| ?ed) out|burnout|so much going on|no time for/i,
+    reflect:["It sounds like everything is landing at once.","That's a lot to hold all at the same time."],
+    ask:["If you set the whole pile down for a second — what's the one thing that genuinely can't wait?","What's on this list because it matters to you, and what's there out of obligation?","When it gets this heavy, what usually helps you find the ground again?"] },
+  { key:"change", kind:"thought", rx:/everything('?s| is| has) chang|things are different|used to be|not the same anymore|moving (on|away|out)|new (chapter|start|city|school|job|place)|transition|growing apart|since (it|things|everything) changed/i,
+    reflect:["Change like that unsettles more than we expect.","There's a quiet kind of grief in things not being what they were."],
+    ask:["What are you leaving behind — and what might you be making room for?","What stays true about you even as the circumstances shift?","Is the hard part the change itself, or that you didn't get to choose it?"] },
+  { key:"confidence", kind:"thought", rx:/confidence|self[- ]?doubt|doubt myself|not sure i can|insecure|imposter|impostor|feel like a fraud|out of my depth|afraid i'?ll (fail|mess)|not capable|not smart enough/i,
+    reflect:["It sounds like part of you is quietly convinced you're not up to it.","That doubt has a loud voice right now."],
+    ask:["Is that doubt built on evidence, or on a feeling that's simply louder than the facts?","When have you handled something you were certain you couldn't?","Whose voice is that doubt, really — does it even sound like yours?"] },
+  { key:"body", kind:"thought", rx:/my body|my weight|losing weight|gaining weight|\beating\b|\bfood\b|\bdiet\b|binge|the gym|workout|my appearance|the mirror|look (fat|ugly|gross)|hate how i look|my skin/i,
+    reflect:["How you feel in your own skin colours a lot of the day.","There's something tender in how you're talking about your body."],
+    ask:["Whose standard are you measuring yourself against — and did you ever actually choose it?","What would it be like to treat your body as something to care for rather than fix?","Where did this way of seeing yourself first come from?"] },
+  { key:"meaning", kind:"thought", rx:/pointless|meaningless|no point|what'?s the point|nothing matters|going through the motions|why (do i even )?bother|no purpose|going nowhere|feels hollow/i,
+    reflect:["When it all feels pointless, even small things get heavy.","That flatness — like the colour has drained out — is hard to sit in."],
+    ask:["When did things last feel like they mattered, even a little?","If nothing comes with built-in meaning, what would you choose to make matter?","Is this a real lack of meaning, or exhaustion wearing its mask?"] },
+  { key:"fear", kind:"emotion", rx:/\bafraid\b|\bscared\b|terrified|\bfear\b|\bdread\b|frightened|petrified/i,
+    reflect:["Fear like that is hard to sit with.","Something in this feels genuinely threatening to you."],
+    ask:["What exactly is the fear pointing at — what's the worst it pictures?","Is the thing you fear likely, or mostly just vivid?","What would you do here if the fear weren't in the room?"] },
+  { key:"rejection", kind:"emotion", rx:/rejected|rejection|turned me down|didn'?t want me|ghosted|ignored me|not invited|unwanted|they don'?t like me|pushed away|left me out/i,
+    reflect:["Being turned away like that stings in a deep place.","That sounds like it landed hard."],
+    ask:["What did this make you believe about yourself — and is that actually true?","Does one person turning you down really get to measure your worth?","What would you say to a friend this had happened to?"] },
 ];
 
 const GENERIC_REFLECT = ["Thanks for sharing that.","I'm with you — go on.","That sounds important.","I hear you."];
@@ -1142,6 +1203,9 @@ const THEME_LENS = {
   growth:"existential", belief:"existential", comparison:"stoic", anxiety:"stoic",
   sad:"buddhist", anger:"taoist", lonely:"existential", sleep:"taoist",
   motivation:"aristotelian", relationship:"buddhist", self:"buddhist", positive:"aristotelian",
+  decision:"stoic", future:"stoic", work:"stoic", guilt:"buddhist", overwhelm:"taoist",
+  change:"buddhist", confidence:"aristotelian", body:"buddhist", meaning:"absurdist",
+  fear:"stoic", rejection:"buddhist",
 };
 
 // no-repeat picker
@@ -1296,6 +1360,104 @@ function renderLenses(){
       '<button class="btn ghost small" data-k="'+k+'" style="width:auto;padding:7px 14px">Apply in Companion →</button>'+
     '</div>').join("");
   $$('#lensCards .btn').forEach(b=> b.onclick=()=>{ gotoView("companion"); setTimeout(()=>applyLens(b.dataset.k),60); });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PATTERNS  —  reflect the map back to the user. Everything here is framed as
+   an OBSERVATION, never an assessment: it mirrors their own connections, it
+   does not diagnose, label, or prescribe. All derived from data already on
+   the map (connections, origins, node kinds).
+   ═══════════════════════════════════════════════════════════════════════ */
+function renderPatterns(){
+  const el = $("#patternsBody");
+  const nodes = S.nodes, N = nodes.length;
+  if(N < 3){
+    el.innerHTML =
+      '<div class="pcard"><div class="lbl">Not much to read yet</div>'+
+      '<p class="pobs">Patterns need a few points before they can emerge. Add some thoughts, emotions, and behaviors to your map — and connect the ones that feel related — then come back here.</p></div>';
+    return;
+  }
+
+  const kc = {thought:0,emotion:0,behavior:0};
+  const oc = {mine:0,borrowed:0,unsure:0};
+  nodes.forEach(n=>{ kc[n.kind]++; oc[n.origin]++; });
+  const deg = degreeMap();
+  const cId = centreId();
+  const centre = nodes.find(n=>n.id===cId);
+  const islands = nodes.filter(n=>deg[n.id]===0);
+  const borrowedByKind = {thought:0,emotion:0,behavior:0};
+  nodes.filter(n=>n.origin==="borrowed").forEach(n=>borrowedByKind[n.kind]++);
+  let mineAnchor=null;
+  nodes.filter(n=>n.origin==="mine").forEach(n=>{ if(!mineAnchor||deg[n.id]>deg[mineAnchor.id]) mineAnchor=n; });
+
+  const pct = v=>Math.round(v/N*100);
+  const seg = (v,c)=> v>0 ? '<div style="width:'+(v/N*100)+'%;background:'+c+'"></div>' : '';
+  let html = '';
+
+  // ── centre of the web ──
+  if(centre && deg[cId]>0){
+    const k=KINDS[centre.kind];
+    html += '<div class="pcard"><div class="lbl">The centre of your web</div>'+
+      '<div style="display:flex;align-items:center;gap:10px"><span style="color:'+k.color+';font-size:16px">'+k.icon+'</span>'+
+      '<span class="big">'+escapeHtml(centre.label)+'</span></div>'+
+      '<p class="pobs" style="margin-top:10px">More of your map connects to this than to anything else ('+deg[cId]+' link'+(deg[cId]===1?'':'s')+'). That doesn\'t make it the cause of anything — only the place where your lines cross. Worth sitting with.</p></div>';
+  }
+
+  // ── origins (the anti-groupthink read) ──
+  const bpct=pct(oc.borrowed), mpct=pct(oc.mine);
+  let originObs;
+  if(bpct>=40) originObs = '<b style="color:var(--accent)">'+bpct+'%</b> of your map is borrowed — absorbed from feeds, people, and culture rather than authored by you. Those are the nodes worth examining first: are they actually yours?';
+  else if(bpct<=20) originObs = 'Only <b style="color:var(--accent)">'+bpct+'%</b> of your map is borrowed — most of this is genuinely yours. That\'s rarer than it sounds in a feed-saturated week.';
+  else originObs = 'About <b style="color:var(--accent)">'+bpct+'%</b> borrowed, <b style="color:#7FB59A">'+mpct+'%</b> yours. A mix — the question is which side the important nodes fall on.';
+  html += '<div class="pcard"><div class="lbl">Where it comes from</div>'+
+    '<div class="pbar">'+seg(oc.mine,'#7FB59A')+seg(oc.borrowed,'#C9A86A')+seg(oc.unsure,'#3A3E45')+'</div>'+
+    '<div class="pkey"><span><i style="background:#7FB59A"></i>Mine ('+oc.mine+')</span><span><i style="background:#C9A86A"></i>Borrowed ('+oc.borrowed+')</span><span><i style="background:#3A3E45"></i>Unsure ('+oc.unsure+')</span></div>'+
+    '<p class="pobs" style="margin-top:12px">'+originObs+'</p>'+
+    (oc.unsure>0?'<p class="pobs" style="margin-top:8px;color:var(--faint)">You\'ve left '+oc.unsure+' node'+(oc.unsure===1?'':'s')+' unexamined. Deciding where each came from is its own small act of thinking for yourself.</p>':'')+
+    '</div>';
+
+  // ── composition (shape of the week) ──
+  const dom = [['thought',kc.thought],['emotion',kc.emotion],['behavior',kc.behavior]].sort((a,b)=>b[1]-a[1])[0];
+  const domPct = pct(dom[1]);
+  let compObs;
+  if(domPct>=50 && dom[0]==='thought') compObs = 'Your week is living mostly in your head — lots of thinking, with fewer emotions or actions placed beside it. What did you actually feel and do?';
+  else if(domPct>=50 && dom[0]==='emotion') compObs = 'This week is heavy with feeling. The emotions are well-mapped — notice whether the thoughts and behaviors driving them are here too.';
+  else if(domPct>=50 && dom[0]==='behavior') compObs = 'You\'ve logged a lot of doing. What were the feelings and thoughts underneath the actions?';
+  else compObs = 'Thoughts, emotions, and behaviors are fairly balanced here — a rounded picture of the week.';
+  html += '<div class="pcard"><div class="lbl">The shape of your week</div>'+
+    '<div class="pbar">'+seg(kc.thought,KINDS.thought.raw)+seg(kc.emotion,KINDS.emotion.raw)+seg(kc.behavior,KINDS.behavior.raw)+'</div>'+
+    '<div class="pkey"><span><i style="background:'+KINDS.thought.raw+'"></i>Thoughts ('+kc.thought+')</span><span><i style="background:'+KINDS.emotion.raw+'"></i>Emotions ('+kc.emotion+')</span><span><i style="background:'+KINDS.behavior.raw+'"></i>Behaviors ('+kc.behavior+')</span></div>'+
+    '<p class="pobs" style="margin-top:12px">'+compObs+'</p></div>';
+
+  // ── what you borrowed (only when there's enough to see a cluster) ──
+  if(oc.borrowed>=3){
+    const bdom = [['thought',borrowedByKind.thought],['emotion',borrowedByKind.emotion],['behavior',borrowedByKind.behavior]].sort((a,b)=>b[1]-a[1])[0];
+    if(bdom[1]>=2 && bdom[1]/oc.borrowed>=0.5){
+      const lbl = KINDS[bdom[0]].label.toLowerCase()+'s';
+      html += '<div class="pcard"><div class="lbl">What you borrowed</div>'+
+        '<p class="pobs">Most of what you absorbed from outside shows up as <b style="color:'+KINDS[bdom[0]].color+'">'+lbl+'</b>. '+
+        (bdom[0]==='thought'?'Borrowed beliefs are the easiest to mistake for your own — these are the ones to hold up to the light.':
+         bdom[0]==='emotion'?'Even feelings can be caught from others. Worth asking which are reactions to your life, and which to a feed.':
+         'Habits copied from others run quietly. Which of these did you actually choose?')+'</p></div>';
+    }
+  }
+
+  // ── strongest self-authored anchor ──
+  if(mineAnchor && deg[mineAnchor.id]>0 && mineAnchor.id!==cId){
+    const k=KINDS[mineAnchor.kind];
+    html += '<div class="pcard"><div class="lbl">Your strongest self-authored anchor</div>'+
+      '<div style="display:flex;align-items:center;gap:10px"><span style="color:'+k.color+';font-size:16px">'+k.icon+'</span><span class="big">'+escapeHtml(mineAnchor.label)+'</span></div>'+
+      '<p class="pobs" style="margin-top:10px">This is the most connected node you marked as genuinely yours. When a week feels borrowed, the things you actually authored are worth leaning toward.</p></div>';
+  }
+
+  // ── islands ──
+  if(islands.length>0){
+    html += '<div class="pcard"><div class="lbl">Standing alone</div>'+
+      '<p class="pobs">'+islands.length+' node'+(islands.length===1?'':'s')+' '+(islands.length===1?'stands':'stand')+' unconnected — nothing yet links '+(islands.length===1?'it':'them')+' to the rest. Sometimes an unlinked thought is simply new; sometimes it\'s one you haven\'t worked out where it fits. Either is worth a second look.</p>'+
+      '<div class="pkey" style="margin-top:10px">'+islands.slice(0,6).map(n=>'<span><i style="background:'+KINDS[n.kind].raw+'"></i>'+escapeHtml(n.label.length>24?n.label.slice(0,22)+'…':n.label)+'</span>').join('')+'</div></div>';
+  }
+
+  el.innerHTML = html;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
