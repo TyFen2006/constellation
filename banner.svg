@@ -1,25 +1,45 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="280" viewBox="0 0 1200 280">
-  <rect width="1200" height="280" fill="#0B0D10"/>
-  <!-- constellation motif -->
-  <g stroke="#3A424C" stroke-width="2">
-    <line x1="150" y1="90" x2="95" y2="170"/>
-    <line x1="150" y1="90" x2="235" y2="150"/>
-    <line x1="95" y1="170" x2="160" y2="225"/>
-    <line x1="235" y1="150" x2="225" y2="222"/>
-    <line x1="160" y1="225" x2="225" y2="222"/>
-    <line x1="150" y1="90" x2="255" y2="62"/>
-    <line x1="95" y1="170" x2="60" y2="105"/>
+  <defs>
+    <radialGradient id="glowBig" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.38"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowMid" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="spikeFade" gradientUnits="userSpaceOnUse" cx="160" cy="140" r="130">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="280" fill="#000000"/>
+
+  <!-- star field -->
+  <circle cx="60"  cy="50"  r="2"   fill="#FFFFFF" opacity="0.75"/>
+  <circle cx="270" cy="60"  r="1.8" fill="#FFFFFF" opacity="0.6"/>
+  <circle cx="292" cy="200" r="2"   fill="#FFFFFF" opacity="0.7"/>
+  <circle cx="40"  cy="222" r="1.6" fill="#FFFFFF" opacity="0.5"/>
+  <circle cx="232" cy="246" r="1.6" fill="#FFFFFF" opacity="0.55"/>
+  <g fill="#FFFFFF" opacity="0.8">
+    <polygon points="265,95 267,105 265,115 263,105"/>
+    <polygon points="255,105 265,103 275,105 265,107"/>
   </g>
-  <circle cx="150" cy="90" r="30" fill="#C9A86A" opacity="0.13"/>
-  <circle cx="150" cy="90" r="13" fill="#C9A86A"/>
-  <circle cx="95" cy="170" r="8" fill="#7F8FB5"/>
-  <circle cx="235" cy="150" r="8" fill="#B57F9A"/>
-  <circle cx="160" cy="225" r="8" fill="#7FB59A"/>
-  <circle cx="225" cy="222" r="6" fill="#C9A86A"/>
-  <circle cx="255" cy="62" r="4.5" fill="#6B6964"/>
-  <circle cx="60" cy="105" r="4.5" fill="#6B6964"/>
+
+  <!-- tilted orbit ring + satellite -->
+  <ellipse cx="160" cy="140" rx="130" ry="47" fill="none" stroke="#FFFFFF" stroke-opacity="0.32" stroke-width="1.8" transform="rotate(-28 160 140)"/>
+  <circle cx="46.6" cy="177.7" r="10" fill="url(#glowMid)" opacity="0.6"/>
+  <circle cx="46.6" cy="177.7" r="4.2" fill="#FFFFFF" opacity="0.95"/>
+
+  <!-- the star: glow, diffraction spikes, core -->
+  <circle cx="160" cy="140" r="92" fill="url(#glowBig)"/>
+  <circle cx="160" cy="140" r="40" fill="url(#glowMid)"/>
+  <polygon points="160,22 165.5,140 160,258 154.5,140" fill="url(#spikeFade)"/>
+  <polygon points="76,140 160,135.5 244,140 160,144.5" fill="url(#spikeFade)"/>
+  <circle cx="160" cy="140" r="15" fill="#FFFFFF"/>
+
   <!-- wordmark -->
-  <text x="330" y="140" font-family="Georgia, 'Times New Roman', serif" font-size="64" fill="#E8E6E0" letter-spacing="3">Constellation</text>
+  <text x="330" y="140" font-family="Georgia, 'Times New Roman', serif" font-size="64" fill="#FFFFFF" letter-spacing="3">Constellation</text>
   <text x="334" y="185" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="21" fill="#9A9892" letter-spacing="2">think for yourself &#183; become who you actually are</text>
   <text x="334" y="228" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#5E5C57" letter-spacing="1">a private map of your thoughts, emotions &amp; behaviors &#8212; nothing ever leaves your device</text>
 </svg>
