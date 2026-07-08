@@ -1505,13 +1505,16 @@ function renderPatterns(){
 function fmtDate(iso){ const p=iso.split("-").map(Number); return new Date(p[0],p[1]-1,p[2]).toLocaleDateString(undefined,{month:"short",day:"numeric"}); }
 
 function computeAggregate(){
-  let n=0,mine=0,borrowed=0,unsure=0,th=0,em=0,be=0;
-  DB.maps.forEach(m=>(m.nodes||[]).forEach(nd=>{
-    n++;
-    if(nd.origin==="mine")mine++; else if(nd.origin==="borrowed")borrowed++; else unsure++;
-    if(nd.kind==="thought")th++; else if(nd.kind==="emotion")em++; else be++;
-  }));
-  return {n,mine,borrowed,unsure,th,em,be};
+  let n=0,mine=0,borrowed=0,unsure=0,th=0,em=0,be=0,li=0;
+  DB.maps.forEach(m=>{
+    (m.nodes||[]).forEach(nd=>{
+      n++;
+      if(nd.origin==="mine")mine++; else if(nd.origin==="borrowed")borrowed++; else unsure++;
+      if(nd.kind==="thought")th++; else if(nd.kind==="emotion")em++; else be++;
+    });
+    li += (m.links||[]).length;
+  });
+  return {n,mine,borrowed,unsure,th,em,be,li};
 }
 // Record (or refresh) today's datapoint. Skipped while showing example data.
 function snapshotToday(){
@@ -1622,6 +1625,32 @@ function renderJourney(){
                     : 'You\'ve kept things focused rather than sprawling. Depth over volume is its own kind of clarity.')+
     '</p></div>';
 
+  // Composition over time — thoughts / emotions / behaviors as a share of the map
+  const thP=hist.map(e=> e.n?Math.round(e.th/e.n*100):0);
+  const emP=hist.map(e=> e.n?Math.round(e.em/e.n*100):0);
+  const beP=hist.map(e=> e.n?Math.round(e.be/e.n*100):0);
+  const domKind=[["thoughts",last.th],["emotions",last.em],["behaviors",last.be]].sort((a,b)=>b[1]-a[1])[0][0];
+  html+='<div class="pcard"><div class="lbl">The shape of your week, over time</div>'+
+    svgLineChart({ n, yMax:100, ySuffix:"%", xLabels, series:[{color:KINDS.thought.raw,pts:thP},{color:KINDS.emotion.raw,pts:emP},{color:KINDS.behavior.raw,pts:beP}] })+
+    '<div class="pkey" style="margin-top:6px"><span><i style="background:'+KINDS.thought.raw+'"></i>Thoughts</span><span><i style="background:'+KINDS.emotion.raw+'"></i>Emotions</span><span><i style="background:'+KINDS.behavior.raw+'"></i>Behaviors</span></div>'+
+    '<p class="pobs" style="margin-top:12px">Lately your inner life leans toward <b>'+domKind+'</b>. Watch how the balance shifts — a stretch heavy in thoughts and light on behavior is a different kind of week from the reverse.</p></div>';
+
+  // Connectedness over time — average links per node (how interwoven your thinking is)
+  const densPts=hist.filter(e=> e.li!=null && e.n>0);
+  if(densPts.length>=2){
+    const dn=densPts.length, dens=densPts.map(e=> e.li/e.n);
+    const dMax=Math.max(1, Math.ceil(Math.max.apply(null,dens)*10)/10);
+    const dLabels=[{i:0,t:fmtDate(densPts[0].d),anchor:"start"},{i:dn-1,t:fmtDate(densPts[dn-1].d),anchor:"end"}];
+    const d0=dens[0], d1=dens[dn-1];
+    let densObs;
+    if(d1>=d0+0.15) densObs='Your ideas are getting more interwoven — from about '+d0.toFixed(1)+' to '+d1.toFixed(1)+' connections per node. You\'re linking things, not just listing them.';
+    else if(d1<=d0-0.15) densObs='Your map has loosened lately — fewer links per node. Sometimes that\'s clearing space, sometimes it\'s worth asking what stopped connecting.';
+    else densObs='You\'re holding a steady level of connection between your thoughts, around '+d1.toFixed(1)+' links per node.';
+    html+='<div class="pcard"><div class="lbl">How connected your thinking is</div>'+
+      svgLineChart({ n:dn, yMax:dMax, xLabels:dLabels, series:[{color:"#C9A86A",pts:dens,area:true}] })+
+      '<p class="pobs" style="margin-top:12px">'+densObs+'</p></div>';
+  }
+
   el.innerHTML = html;
   $$('#patternsBody .jrange button').forEach(b=> b.onclick=()=>{ journeyRange=b.dataset.r; renderJourney(); });
   if(DB.historyDemo) $("#clearJourneyDemo").onclick = ()=>{ DB.history=[]; DB.historyDemo=false; save(); renderPatterns(); };
@@ -1639,7 +1668,9 @@ function loadJourneyDemo(){
     const unsure=Math.round(nn*0.12);
     const mine=Math.max(0, nn-borrowed-unsure);
     const th=Math.round(nn*0.4), em=Math.round(nn*0.34), be=Math.max(0, nn-th-em);
-    out.push({ d:dt.toISOString().slice(0,10), n:nn, mine, borrowed, unsure, th, em, be });
+    const dens=0.6 + t*1.1 + (Math.random()*0.2-0.1);
+    const li=Math.max(0, Math.round(nn*dens));
+    out.push({ d:dt.toISOString().slice(0,10), n:nn, mine, borrowed, unsure, th, em, be, li });
   }
   DB.history=out; DB.historyDemo=true; save(); renderPatterns();
 }
