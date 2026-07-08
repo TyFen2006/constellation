@@ -186,6 +186,7 @@
   .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin:2px 0 16px}
   .seg button{background:transparent;color:var(--dim);border:none;padding:8px 18px;font-size:12.5px;cursor:pointer;letter-spacing:.02em}
   .seg button.on{background:var(--raised);color:var(--text)}
+  .seg.jrange button{padding:7px 14px;font-size:12px}
   .pcard svg{width:100%;height:auto;display:block;margin:2px 0}
 
   /* ── ABOUT view ─────────────────────────────────────────── */
@@ -1393,6 +1394,7 @@ function renderLenses(){
    the map (connections, origins, node kinds).
    ═══════════════════════════════════════════════════════════════════════ */
 let patternsMode = "now";   // "now" = this map · "time" = journey over time
+let journeyRange = "month"; // week · month · year · all
 function renderPatterns(){
   $$('#patternsSeg button').forEach(b=> b.classList.toggle('on', b.dataset.mode===patternsMode));
   if(patternsMode==="time"){
@@ -1552,15 +1554,40 @@ function svgLineChart(o){
   return '<svg viewBox="0 0 '+w+' '+h+'">'+g+'</svg>';
 }
 
+// Filter history to a range (week/month/year/all); bucket to weekly averages when dense.
+function bucketHistory(hist, range){
+  const cut = range==="week"?7 : range==="month"?31 : range==="year"?365 : 1e9;
+  const today0 = new Date(); today0.setHours(0,0,0,0);
+  let sel = hist.filter(e=> (today0 - new Date(e.d))/86400000 < cut);
+  if(sel.length < 2) sel = hist.slice(-Math.max(2, Math.min(hist.length, 8)));
+  if(sel.length > 45){
+    const start = new Date(sel[0].d).getTime(), groups = new Map();
+    sel.forEach(e=>{ const wk=Math.floor((new Date(e.d).getTime()-start)/(7*86400000)); if(!groups.has(wk)) groups.set(wk,[]); groups.get(wk).push(e); });
+    return [...groups.values()].map(g=>{
+      const avg=k=> g.reduce((s,e)=>s+e[k],0)/g.length;
+      return { d:g[g.length-1].d, n:avg("n"), mine:avg("mine"), borrowed:avg("borrowed"), unsure:avg("unsure") };
+    });
+  }
+  return sel;
+}
+
 function renderJourney(){
   const el = $("#patternsBody");
-  const hist = (DB.history||[]).slice(-60);
-  if(hist.length < 2){
+  const fullHist = (DB.history||[]);
+  if(fullHist.length < 2){
     el.innerHTML =
       '<div class="pcard"><div class="lbl">Your journey is just beginning</div>'+
       '<p class="pobs">This view grows as you use Constellation across days — it tracks how your map changes over time, especially how much of your inner life you author yourself versus absorb from outside. Come back tomorrow and the line starts to form.</p>'+
       '<button class="btn" id="loadJourneyDemo" style="width:auto;margin-top:14px;background:transparent;border-color:var(--accentDim);color:var(--accent);padding:8px 16px">Preview with example data</button></div>';
     $("#loadJourneyDemo").onclick = loadJourneyDemo;
+    return;
+  }
+  const rangeBar = '<div class="pcard" style="padding:10px 12px"><div class="seg jrange">'+
+    [["week","Week"],["month","Month"],["year","Year"],["all","All"]].map(r=>'<button data-r="'+r[0]+'" class="'+(r[0]===journeyRange?"on":"")+'">'+r[1]+'</button>').join("")+'</div></div>';
+  const hist = bucketHistory(fullHist, journeyRange);
+  if(hist.length < 2){
+    el.innerHTML = rangeBar + '<div class="pcard"><p class="pobs">Not enough history in this range yet — try a wider range, or come back after another day or two.</p></div>';
+    $$('#patternsBody .jrange button').forEach(b=> b.onclick=()=>{ journeyRange=b.dataset.r; renderJourney(); });
     return;
   }
   const n=hist.length;
@@ -1579,7 +1606,7 @@ function renderJourney(){
   else if(bp1>=bp0+5) takeaway='Your <b style="color:var(--accent)">borrowed</b> share rose from '+bp0+'% to '+bp1+'% across these '+days+' days — lately more of what\'s on your mind is coming from outside. Worth noticing where it\'s getting in.';
   else takeaway='Your balance of borrowed vs. authored has held fairly steady, around '+bp1+'% borrowed. Steady isn\'t nothing — it\'s a baseline to push from.';
 
-  let html="";
+  let html=rangeBar;
   if(DB.historyDemo)
     html+='<div class="pcard" style="border-color:var(--accentDim)"><p class="pobs" style="margin:0">Showing <b style="color:var(--accent)">example data</b> so you can see how this looks over time. <button id="clearJourneyDemo" style="background:none;border:none;color:var(--accent);cursor:pointer;text-decoration:underline;font-size:13px;padding:0">Clear it</button> to start tracking your own.</p></div>';
 
@@ -1591,22 +1618,23 @@ function renderJourney(){
   html+='<div class="pcard"><div class="lbl">How much you\'ve mapped</div>'+
     svgLineChart({ n, yMax:cMax, xLabels, series:[{color:"#7F8FB5",pts:counts,area:true}] })+
     '<p class="pobs" style="margin-top:12px">'+
-    (last.n>first.n ? 'Your map has grown from '+first.n+' to '+last.n+' points — you\'re putting more of your inner life into the open.'
+    (last.n>first.n ? 'Your map has grown from '+Math.round(first.n)+' to '+Math.round(last.n)+' points — you\'re putting more of your inner life into the open.'
                     : 'You\'ve kept things focused rather than sprawling. Depth over volume is its own kind of clarity.')+
     '</p></div>';
 
   el.innerHTML = html;
+  $$('#patternsBody .jrange button').forEach(b=> b.onclick=()=>{ journeyRange=b.dataset.r; renderJourney(); });
   if(DB.historyDemo) $("#clearJourneyDemo").onclick = ()=>{ DB.history=[]; DB.historyDemo=false; save(); renderPatterns(); };
 }
 
 // Seed a plausible multi-week journey so the feature can be shown immediately.
 function loadJourneyDemo(){
-  const days=16, out=[], today=new Date();
-  for(let k=days-1;k>=0;k--){
-    const dt=new Date(today); dt.setDate(today.getDate()-k*2);
-    const t=(days-1-k)/(days-1);
-    const nn=Math.max(4, Math.round(6 + t*10 + (Math.random()*2-1)));
-    const bfrac=Math.max(0.12, 0.62 - t*0.34 + (Math.random()*0.06-0.03));
+  const daysTotal=365, out=[], today=new Date();
+  for(let k=daysTotal-1;k>=0;k--){
+    const dt=new Date(today); dt.setDate(today.getDate()-k);
+    const t=(daysTotal-1-k)/(daysTotal-1);
+    const nn=Math.max(4, Math.round(5 + t*15 + (Math.random()*2-1)));
+    const bfrac=Math.max(0.12, 0.66 - t*0.42 + (Math.random()*0.08-0.04));
     const borrowed=Math.round(nn*bfrac);
     const unsure=Math.round(nn*0.12);
     const mine=Math.max(0, nn-borrowed-unsure);
