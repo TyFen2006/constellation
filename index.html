@@ -98,6 +98,12 @@
   .zoomctl button{width:32px;height:32px;background:rgba(11,13,16,.7);border:1px solid var(--line);
     color:var(--text);border-radius:8px;font-size:16px;cursor:pointer;line-height:1}
   .zoomctl button:hover{border-color:var(--accentDim)}
+  .spark-btn{position:absolute;bottom:14px;right:16px;background:rgba(11,13,16,.72);border:1px solid var(--accentDim);
+    color:var(--accent);border-radius:20px;padding:9px 16px;font-size:13px;cursor:pointer;z-index:9}
+  .spark-btn:hover{background:var(--accentDim);color:var(--bg)}
+  .spark-btn.hero{background:var(--accent);color:var(--bg);border-color:var(--accent);box-shadow:0 0 20px rgba(201,168,106,.35)}
+  #modalHint{display:none;font-size:13px;color:var(--accent);background:#15120C;border:1px solid #2E2A1C;
+    border-radius:8px;padding:9px 12px;margin-bottom:14px;line-height:1.5}
   .mapselect{width:100%;background:var(--raised);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px;font-size:12.5px;cursor:pointer}
   /* The node is anchored AT the dot, so connecting lines meet the dot exactly.
      The label floats beneath without shifting the dot's position. */
@@ -360,7 +366,7 @@
           <svg id="linksSvg"></svg>
         </div>
         <div class="empty-stage" id="emptyStage" style="display:none">
-          This map is empty.<br>Double-tap anywhere — or use <b style="color:var(--accent)">+ New node</b> in the menu — to place your first thought, feeling, or behavior.
+          This map is empty.<br>Double-tap anywhere to place a thought — or tap <b style="color:var(--accent)">💭 Can't think?</b> for a place to start.
         </div>
         <div class="legend" id="legend"></div>
         <div class="hint" id="hint">Connecting from the glowing node — click another node to link, or click empty space to cancel</div>
@@ -370,6 +376,7 @@
           <button id="zoomOut" title="Zoom out">−</button>
         </div>
         <button class="railToggle" id="railToggle" title="Menu">☰</button>
+        <button class="spark-btn" id="sparkBtn" title="Get unstuck">💭 Can't think?</button>
       </div>
 
       <div class="rail-backdrop" id="railBackdrop"></div>
@@ -471,6 +478,7 @@
 <div class="modal-bg" id="modalBg">
   <div class="modal">
     <h3>What's on your mind?</h3>
+    <div id="modalHint"></div>
     <div class="kindpick" id="modalKind"></div>
     <textarea id="modalText" rows="2" placeholder="A short phrase — not a paragraph. e.g. 'felt behind everyone'"></textarea>
     <div class="muted" style="margin:14px 0 8px">Where did this come from?</div>
@@ -497,6 +505,20 @@
       <span class="wt"><b>Talk it out.</b> The Companion asks questions so you can hear your own mind — it never tells you what to think.</span></div>
     <div class="wfoot">Everything stays on your device — no account, no upload. Not a medical or therapy tool.</div>
     <button class="btn gold" id="welcomeBegin">Begin</button>
+  </div>
+</div>
+
+<!-- "Can't think?" prompt card -->
+<div class="modal-bg" id="sparkBg">
+  <div class="modal" style="width:420px">
+    <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:12px">A place to start</div>
+    <div id="sparkText" style="font-family:var(--serif);font-size:19px;line-height:1.45;color:var(--text);margin-bottom:20px"></div>
+    <button class="btn gold" id="sparkAdd">Answer on the map</button>
+    <div class="row2" style="margin-top:8px">
+      <button class="btn ghost" id="sparkAnother">↻ Another</button>
+      <button class="btn ghost" id="sparkTalk">Talk it through</button>
+    </div>
+    <button class="btn ghost small" id="sparkClose" style="margin-top:10px;border:none;color:var(--faint)">Close</button>
   </div>
 </div>
 
@@ -561,6 +583,7 @@ function loadSettings(){ try{ const r=localStorage.getItem(SKEY); if(r) return O
 function saveSettings(){ try{ localStorage.setItem(SKEY, JSON.stringify(settings)); }catch(e){} }
 
 let selected = null, linkFrom = null, dragId = null, lensOn = false;
+let sparkHint = null, currentSpark = "";
 let filter = { thought:true, emotion:true, behavior:true };
 let draft = { kind:"thought", origin:"unsure" };
 
@@ -625,7 +648,9 @@ function renderGraph(){
   $$(".node", canvas).forEach(el=>el.remove());
 
   const vis = visibleNodes();
-  $("#emptyStage").style.display = S.nodes.length===0 ? "flex" : "none";
+  const empty = S.nodes.length===0;
+  $("#emptyStage").style.display = empty ? "flex" : "none";
+  $("#sparkBtn").classList.toggle("hero", empty);
   const cId = centreId();
 
   vis.forEach(n=>{
@@ -722,7 +747,7 @@ window.addEventListener("pointerup", ()=>{ if(dragId){ dragId=null; save(); $$("
 // Pan by dragging the empty background; click (no drag) deselects.
 let pan = null;
 stage.addEventListener("pointerdown", e=>{
-  if(e.target.closest(".node") || e.target.closest(".zoomctl") || e.target.closest(".railToggle")) return;
+  if(e.target.closest(".node") || e.target.closest(".zoomctl") || e.target.closest(".railToggle") || e.target.closest(".spark-btn")) return;
   if(linkFrom){ cancelLink(); renderGraph(); return; }   // click empty space cancels connecting
   pan = { sx:e.clientX, sy:e.clientY, px:view.panX, py:view.panY, moved:false };
 });
@@ -810,7 +835,7 @@ stage.addEventListener("touchmove",  e=>{ if(e.touches.length>1) e.preventDefaul
 // Double-click empty space to add a node right where you clicked.
 let pendingPos = null;
 stage.addEventListener("dblclick", e=>{
-  if(e.target.closest(".node") || e.target.closest(".zoomctl") || e.target.closest(".railToggle") || linkFrom) return;
+  if(e.target.closest(".node") || e.target.closest(".zoomctl") || e.target.closest(".railToggle") || e.target.closest(".spark-btn") || linkFrom) return;
   const w = worldSize(), r = stage.getBoundingClientRect();
   const cx = (e.clientX - r.left - view.panX)/view.scale;
   const cy = (e.clientY - r.top  - view.panY)/view.scale;
@@ -1007,6 +1032,9 @@ function openModal(){
     '<button data-k="'+k+'" title="'+v.desc+'">'+v.label+'</button>').join("");
   syncModalSel();
   $("#modalText").value="";
+  const hintEl = $("#modalHint");
+  if(sparkHint){ hintEl.textContent = sparkHint; hintEl.style.display="block"; $("#modalText").placeholder="Your answer — a short phrase…"; }
+  else { hintEl.style.display="none"; $("#modalText").placeholder="A short phrase — not a paragraph. e.g. 'felt behind everyone'"; }
   $("#modalBg").classList.add("show");
   setTimeout(()=>$("#modalText").focus(),30);
 }
@@ -1021,11 +1049,12 @@ function syncModalSel(){
 }
 $("#modalKind").onclick = e=>{ const b=e.target.closest("button"); if(b){ draft.kind=b.dataset.k; syncModalSel(); } };
 $("#modalOrigin").onclick = e=>{ const b=e.target.closest("button"); if(b){ draft.origin=b.dataset.k; syncModalSel(); } };
-$("#modalCancel").onclick = ()=>{ pendingPos=null; $("#modalBg").classList.remove("show"); };
-$("#modalBg").onclick = e=>{ if(e.target===$("#modalBg")){ pendingPos=null; $("#modalBg").classList.remove("show"); } };
+$("#modalCancel").onclick = ()=>{ pendingPos=null; sparkHint=null; $("#modalBg").classList.remove("show"); };
+$("#modalBg").onclick = e=>{ if(e.target===$("#modalBg")){ pendingPos=null; sparkHint=null; $("#modalBg").classList.remove("show"); } };
 $("#modalAdd").onclick = ()=>{
   const t=$("#modalText").value.trim(); if(!t){ toast("Add a few words first."); return; }
   addNode(draft.kind, t, draft.origin);
+  sparkHint=null;
   $("#modalBg").classList.remove("show");
 };
 function addNode(kind,label,origin){
@@ -1035,6 +1064,46 @@ function addNode(kind,label,origin){
   S.nodes.push(n); selected=n.id; save(); renderGraph();
   return n;
 }
+
+/* ── "Can't think?" — gets a stuck mind moving with a gentle prompt ── */
+const SPARK_BROAD = [
+  "What's one thing that's been quietly bugging you this week?",
+  "What did you do today that you're a little proud of — even if no one noticed?",
+  "What's a belief you hold that you're not actually sure is yours?",
+  "When did you last compare yourself to someone? What set it off?",
+  "What's something you feel but haven't put into words yet?",
+  "What did you do today that no feed would ever applaud?",
+  "What's taking up the most space in your head right now?",
+  "What's one ‘should’ you're carrying — and who handed it to you?",
+  "When did you last feel most like yourself?",
+  "What's a small thing that made today a little better?",
+  "What are you avoiding — and what's underneath the avoiding?",
+  "If you trusted your own judgement over everyone else's right now, what would you do?",
+  "What's something you've changed your mind about lately?",
+  "What drained you today, and what filled you back up?",
+  "What would the best version of you do tomorrow morning?",
+];
+function nextSpark(){
+  const nodes = S.nodes;
+  if(nodes.length && Math.random() < 0.55){
+    const nd = nodes[Math.floor(Math.random()*nodes.length)];
+    const L = "“"+nd.label+"”";
+    let pool;
+    if(nd.origin==="borrowed") pool = ["You marked "+L+" as borrowed — where do you think it actually came from?","Would you still believe "+L+" if no one around you did?"];
+    else if(nd.origin==="unsure") pool = ["You’re unsure where "+L+" came from. Sitting with it — is it yours, or borrowed?","What’s tangled up with "+L+" that you haven’t placed yet?"];
+    else pool = [L+" is genuinely yours. What led you there?","What connects to "+L+" that isn’t on the map yet?"];
+    pool = pool.concat(["What came right before "+L+"?","What feeling sits underneath "+L+"?","What did "+L+" lead to?"]);
+    return pool[Math.floor(Math.random()*pool.length)];
+  }
+  return pick(SPARK_BROAD);
+}
+function openSpark(){ currentSpark = nextSpark(); $("#sparkText").textContent = currentSpark; $("#sparkBg").classList.add("show"); }
+$("#sparkBtn").onclick = e=>{ e.stopPropagation(); openSpark(); };
+$("#sparkAnother").onclick = ()=>{ currentSpark = nextSpark(); $("#sparkText").textContent = currentSpark; };
+$("#sparkClose").onclick = ()=> $("#sparkBg").classList.remove("show");
+$("#sparkBg").onclick = e=>{ if(e.target===$("#sparkBg")) $("#sparkBg").classList.remove("show"); };
+$("#sparkAdd").onclick = ()=>{ $("#sparkBg").classList.remove("show"); sparkHint = currentSpark; openModal(); };
+$("#sparkTalk").onclick = ()=>{ $("#sparkBg").classList.remove("show"); const q=currentSpark; gotoView("companion"); setTimeout(()=>addBotMessage(q), 80); };
 
 /* ═══════════════════════════════════════════════════════════════════════
    COMPANION  —  a gentle, NON-CLINICAL reflective listener.
