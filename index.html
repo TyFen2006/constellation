@@ -341,7 +341,8 @@
 
         <div>
           <div class="sec-title">Maps</div>
-          <p class="muted" style="margin:0 0 10px">Keep a separate map for a day, a mood, or a fresh start — switch any time.</p>
+          <p class="muted" style="margin:0 0 10px">Keep a separate map for a day, a mood, or a fresh start — or load an example to see one filled in.</p>
+          <button class="btn ghost small" id="exampleBtn" style="border-color:var(--accentDim);color:var(--accent);margin-bottom:10px">✦ See an example map</button>
           <select id="mapSelect" class="mapselect"></select>
           <div class="row2" style="margin-top:8px">
             <button class="btn ghost small" id="newMapBtn">+ New map</button>
@@ -371,8 +372,9 @@
         <div class="legend" id="legend"></div>
         <div class="hint" id="hint">Connecting from the glowing node — click another node to link, or click empty space to cancel</div>
         <div class="zoomctl">
+          <button id="tidyBtn" title="Tidy up — auto-arrange the nodes">❋</button>
           <button id="zoomIn" title="Zoom in">+</button>
-          <button id="zoomReset" title="Reset view">⤢</button>
+          <button id="zoomReset" title="Fit all nodes in view">⤢</button>
           <button id="zoomOut" title="Zoom out">−</button>
         </div>
         <button class="railToggle" id="railToggle" title="Menu">☰</button>
@@ -542,6 +544,34 @@ const ORIGINS = {
 
 // New users start with a completely blank map — a fresh sheet, nothing pre-placed.
 
+// A built-in example people can load from the sidebar to see a filled-in map.
+// It tells a small story: a borrowed-heavy comparison spiral resolving into
+// self-authored action and repair.
+const EXAMPLE_MAP = {
+  name: "Example — a rough week",
+  nodes: [
+    { id:"e1",  kind:"behavior", label:"Scrolled until 2am",                 origin:"mine",     x:.24, y:.20 },
+    { id:"e2",  kind:"emotion",  label:"Felt behind everyone",               origin:"borrowed", x:.42, y:.14 },
+    { id:"e3",  kind:"thought",  label:"Everyone my age has it figured out", origin:"borrowed", x:.62, y:.20 },
+    { id:"e4",  kind:"thought",  label:"Success = followers + internships",  origin:"borrowed", x:.80, y:.30 },
+    { id:"e5",  kind:"emotion",  label:"Anxious before the exam",            origin:"mine",     x:.14, y:.42 },
+    { id:"e6",  kind:"behavior", label:"Skipped the gym twice",              origin:"mine",     x:.30, y:.52 },
+    { id:"e7",  kind:"emotion",  label:"Restless, couldn't focus",           origin:"mine",     x:.46, y:.42 },
+    { id:"e8",  kind:"thought",  label:"Comparison is the real problem",     origin:"mine",     x:.66, y:.50 },
+    { id:"e9",  kind:"behavior", label:"Deleted Instagram for the weekend",  origin:"mine",     x:.84, y:.60 },
+    { id:"e10", kind:"emotion",  label:"Calmer by Sunday",                   origin:"mine",     x:.70, y:.76 },
+    { id:"e11", kind:"behavior", label:"Called grandma",                     origin:"mine",     x:.50, y:.84 },
+    { id:"e12", kind:"emotion",  label:"Proud after helping my roommate",    origin:"mine",     x:.30, y:.76 },
+    { id:"e13", kind:"thought",  label:"I want to build things that matter", origin:"mine",     x:.12, y:.64 },
+    { id:"e14", kind:"thought",  label:"My worth is my grades",              origin:"borrowed", x:.08, y:.26 },
+  ],
+  links: [
+    ["e1","e2"],["e2","e3"],["e3","e4"],["e14","e2"],["e5","e14"],["e5","e6"],
+    ["e6","e7"],["e7","e1"],["e7","e2"],["e8","e3"],["e8","e9"],["e9","e10"],
+    ["e10","e11"],["e11","e12"],["e12","e13"],["e13","e8"],
+  ],
+};
+
 /* ═══════════════════════════════════════════════════════════════════════
    STATE  +  persistence
    ═══════════════════════════════════════════════════════════════════════ */
@@ -627,6 +657,48 @@ function fitView(){
   const cx=(minx+maxx)/2, cy=(miny+maxy)/2;
   view={ scale, panX:d.w/2 - cx*scale, panY:d.h/2 - cy*scale };
   applyView();
+}
+
+// "Tidy up" — a force-directed layout: linked nodes attract, all nodes repel,
+// so a messy map settles into a clean, readable arrangement. Not AI, just physics.
+// Node positions are just re-set, so the user can still drag freely afterward.
+function tidyLayout(){
+  const ns = S.nodes;
+  if(ns.length < 2){ toast("Add a few nodes first."); return; }
+  const idx = {}; ns.forEach((n,i)=> idx[n.id]=i);
+  const SIZE = 1000, n = ns.length;
+  const P = ns.map(nd=> ({ x:(nd.x-0.5)*SIZE*0.6 + (Math.random()-0.5)*40, y:(nd.y-0.5)*SIZE*0.6 + (Math.random()-0.5)*40 }));
+  const E = [];
+  S.links.forEach(([a,b])=>{ if(idx[a]!=null && idx[b]!=null) E.push([idx[a],idx[b]]); });
+  const k = 0.9 * Math.sqrt((SIZE*SIZE)/n);   // ideal edge length
+  let temp = SIZE * 0.12;
+  const iters = n>120 ? 180 : 320;
+  for(let it=0; it<iters; it++){
+    const disp = P.map(()=>({x:0,y:0}));
+    for(let i=0;i<n;i++) for(let j=i+1;j<n;j++){
+      let dx=P[i].x-P[j].x, dy=P[i].y-P[j].y, d=Math.hypot(dx,dy)||0.01;
+      const f=(k*k)/d, ux=dx/d, uy=dy/d;
+      disp[i].x+=ux*f; disp[i].y+=uy*f; disp[j].x-=ux*f; disp[j].y-=uy*f;
+    }
+    E.forEach(([a,b])=>{
+      let dx=P[a].x-P[b].x, dy=P[a].y-P[b].y, d=Math.hypot(dx,dy)||0.01;
+      const f=(d*d)/k, ux=dx/d, uy=dy/d;
+      disp[a].x-=ux*f; disp[a].y-=uy*f; disp[b].x+=ux*f; disp[b].y+=uy*f;
+    });
+    for(let i=0;i<n;i++){ disp[i].x-=P[i].x*0.015; disp[i].y-=P[i].y*0.015; } // gentle center gravity
+    for(let i=0;i<n;i++){
+      let dx=disp[i].x, dy=disp[i].y, d=Math.hypot(dx,dy)||0.01, lim=Math.min(d,temp);
+      P[i].x+=(dx/d)*lim; P[i].y+=(dy/d)*lim;
+    }
+    temp *= 0.985;
+  }
+  let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
+  P.forEach(p=>{ minx=Math.min(minx,p.x); miny=Math.min(miny,p.y); maxx=Math.max(maxx,p.x); maxy=Math.max(maxy,p.y); });
+  const bw=Math.max(maxx-minx,1), bh=Math.max(maxy-miny,1), ws=worldSize();
+  const span=0.84, s=Math.min((span*ws.w)/bw, (span*ws.h)/bh);
+  const offx=(ws.w-bw*s)/2, offy=(ws.h-bh*s)/2;
+  ns.forEach((nd,i)=>{ nd.x=(offx+(P[i].x-minx)*s)/ws.w; nd.y=(offy+(P[i].y-miny)*s)/ws.h; });
+  save(); renderGraph(); fitView(); toast("Map tidied.");
 }
 
 function visibleNodes(){ return S.nodes.filter(n=>filter[n.kind]); }
@@ -776,6 +848,7 @@ function zoomAt(sx, sy, factor){
 $("#zoomIn").onclick   = ()=>{ const d=dims(); zoomAt(d.w/2, d.h/2, 1.2); };
 $("#zoomOut").onclick  = ()=>{ const d=dims(); zoomAt(d.w/2, d.h/2, 1/1.2); };
 $("#zoomReset").onclick= ()=>{ fitView(); };
+$("#tidyBtn").onclick = tidyLayout;
 
 // Mobile drawer (☰) for the left rail. Opens on pointerup (not click) so it
 // works reliably under touch, and stops the tap from reaching the map's
@@ -1017,10 +1090,22 @@ function deleteMap(){
     toast("Map deleted.");
   }
 }
+// Load (or refresh) the built-in example map and switch to it.
+function loadExampleMap(){
+  $("#view-map").classList.remove("rail-open");
+  let ex = DB.maps.find(m=> m.isExample);
+  if(!ex){ ex={ id:uid(), name:EXAMPLE_MAP.name, created:Date.now(), isExample:true, nodes:[], links:[] }; DB.maps.push(ex); }
+  ex.nodes = JSON.parse(JSON.stringify(EXAMPLE_MAP.nodes));
+  ex.links = JSON.parse(JSON.stringify(EXAMPLE_MAP.links));
+  ex.name = EXAMPLE_MAP.name;
+  switchMap(ex.id);
+  toast("Loaded the example map.");
+}
 $("#mapSelect").onchange = e=> switchMap(e.target.value);
 $("#newMapBtn").onclick = newMap;
 $("#renameMapBtn").onclick = renameMap;
 $("#delMapBtn").onclick = deleteMap;
+$("#exampleBtn").onclick = loadExampleMap;
 
 /* ── modal ── */
 function openModal(){
