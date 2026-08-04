@@ -195,11 +195,24 @@
   .pkey span{display:flex;align-items:center;gap:6px}
   .pkey i{width:9px;height:9px;border-radius:2px;display:inline-block;flex:none}
   .pobs{font-size:13.5px;color:#C8C6C0;line-height:1.65;margin:0}
-  .loop{border-top:1px solid var(--lineSoft);padding:12px 0}
-  .loop:first-of-type{border-top:none;padding-top:2px}
-  .loopchain{font-size:13.5px;line-height:1.9;color:var(--text);margin-bottom:10px}
-  .loopchain .arw{color:var(--faint);margin:0 3px}
-  .loopbtn{background:transparent;border:1px solid var(--accentDim);color:var(--accent);border-radius:14px;padding:5px 13px;font-size:12px;cursor:pointer}
+  .loopitem{border-top:1px solid var(--lineSoft)}
+  .loopitem:first-of-type{border-top:none}
+  .loophead{display:flex;align-items:center;gap:10px;cursor:pointer;padding:11px 0}
+  .loophead .chev{color:var(--faint);font-size:11px;transition:transform .2s;flex:none}
+  .loopitem.open .loophead .chev{transform:rotate(90deg)}
+  .loopsum{font-size:13px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+  .loopsum b{color:var(--text);font-weight:500}
+  .loopbody{max-height:0;overflow:hidden;transition:max-height .28s ease}
+  .loopitem.open .loopbody{max-height:640px;padding-bottom:14px}
+  .loopchain-v{margin:4px 0 0}
+  .loopchain-v > *{position:relative;display:flex;align-items:center;gap:11px;padding:5px 0}
+  .loopchain-v > *::before{content:"";position:absolute;left:8.5px;top:0;bottom:0;width:1.5px;background:var(--line)}
+  .loopchain-v > *:first-child::before{top:50%}
+  .loopchain-v > *:last-child::before{bottom:50%}
+  .loopchain-v .ic{width:18px;text-align:center;flex:none;background:var(--panel);position:relative;z-index:1;font-size:14px}
+  .loopstep{font-size:13.5px;color:var(--text)}
+  .loopback{font-size:12.5px;color:var(--accent)}
+  .loopbtn{background:transparent;border:1px solid var(--accentDim);color:var(--accent);border-radius:14px;padding:6px 14px;font-size:12px;cursor:pointer}
   .loopbtn:hover{background:var(--accentDim);color:var(--bg)}
   .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin:2px 0 16px}
   .seg button{background:transparent;color:var(--dim);border:none;padding:8px 18px;font-size:12.5px;cursor:pointer;letter-spacing:.02em}
@@ -315,6 +328,33 @@
     background:var(--raised);border:1px solid var(--accentDim);color:var(--text);padding:10px 18px;
     border-radius:24px;font-size:13px;opacity:0;transition:all .3s;pointer-events:none;z-index:60}
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* ── Motion & polish — subtle and calm (this is a reflective app, not a game) ── */
+  /* Frosted-glass floating controls for a cohesive, modern feel */
+  .zoomctl button,.spark-btn,.legend,.railToggle,#iosNotice{backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+  /* Newly placed nodes gently pop in (only genuinely-new ones, via knownNodeIds) */
+  @keyframes nodeIn{from{opacity:0;transform:translate(-50%,-50%) scale(.3)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+  .node.enter{animation:nodeIn .32s cubic-bezier(.34,1.4,.5,1)}
+  /* Views cross-fade instead of hard-cutting */
+  @keyframes viewIn{from{opacity:0}to{opacity:1}}
+  .view.active{animation:viewIn .28s ease}
+  /* Insight cards rise in, lightly staggered */
+  @keyframes cardUp{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+  .pcard,.lenscard{animation:cardUp .34s ease both}
+  .pgrid .pcard:nth-child(2){animation-delay:.04s}
+  .pgrid .pcard:nth-child(3){animation-delay:.08s}
+  .pgrid .pcard:nth-child(4){animation-delay:.12s}
+  .pgrid .pcard:nth-child(5){animation-delay:.16s}
+  .pgrid .pcard:nth-child(n+6){animation-delay:.2s}
+  /* Modals fade + pop */
+  @keyframes bgIn{from{opacity:0}to{opacity:1}}
+  @keyframes modalPop{from{opacity:0;transform:scale(.95) translateY(6px)}to{opacity:1;transform:none}}
+  .modal-bg.show{animation:bgIn .18s ease}
+  .modal-bg.show .modal{animation:modalPop .26s cubic-bezier(.34,1.25,.6,1)}
+  /* Smoother interactive elements */
+  nav button,.chip,.lenschip,.pill,.seg button,.loopbtn{transition:background .18s ease,color .18s ease,border-color .18s ease}
+  /* Respect users who prefer less motion */
+  @media (prefers-reduced-motion:reduce){*{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}}
 </style>
 </head>
 <body>
@@ -647,6 +687,7 @@ function saveSettings(){ try{ localStorage.setItem(SKEY, JSON.stringify(settings
 
 let selected = null, linkFrom = null, dragId = null, lensOn = false;
 let highlight = null;   // Set of node ids to spotlight (loop view), or null
+let knownNodeIds = new Set();   // nodes already seen this session, so only NEW ones animate in
 let sparkHint = null, currentSpark = "";
 let filter = { thought:true, emotion:true, behavior:true };
 let draft = { kind:"thought", origin:"unsure" };
@@ -767,6 +808,7 @@ function renderGraph(){
     const dimIt = lensOn && n.origin!=="borrowed";
     if(dimIt) el.classList.add("dim");
     if(highlight){ el.classList.add(highlight.has(n.id) ? "loopon" : "faded"); }
+    if(!knownNodeIds.has(n.id)){ el.classList.add("enter"); knownNodeIds.add(n.id); }
     el.style.left = p.x+"px"; el.style.top = p.y+"px";
     el.dataset.id = n.id;
 
@@ -1678,12 +1720,17 @@ function renderPatterns(){
   const loops = findLoops();
   if(loops.length){
     html += '<div class="pcard"><div class="lbl">Loops your week keeps circling</div>'+
-      '<p class="pobs" style="margin-bottom:14px">These are cycles in the connections <i>you</i> drew — each part feeds the next and returns to the start. Loops run on their own until something interrupts them. Which link could you break?</p>'+
-      loops.map((loop,i)=>
-        '<div class="loop"><div class="loopchain">'+
-        loop.map(nd=>'<span style="color:'+KINDS[nd.kind].color+'">'+KINDS[nd.kind].icon+'</span> '+escapeHtml(nd.label)).join(' <span class="arw">→</span> ')+
-        ' <span class="arw">↺</span></div><button class="loopbtn" data-i="'+i+'">Show on map</button></div>'
-      ).join('')+'</div>';
+      '<p class="pobs" style="margin-bottom:6px">These are cycles in the connections <i>you</i> drew — each part feeds the next and returns to the start. Tap a loop to follow it step by step.</p>'+
+      loops.map((loop,i)=>{
+        const summary = loop.map(nd=>nd.label).join(', ');
+        const steps = loop.map(nd=>'<div class="loopstep"><span class="ic" style="color:'+KINDS[nd.kind].color+'">'+KINDS[nd.kind].icon+'</span>'+escapeHtml(nd.label)+'</div>').join('');
+        return '<div class="loopitem'+(i===0?' open':'')+'">'+
+          '<div class="loophead"><span class="chev">▸</span><span class="loopsum"><b>'+loop.length+'-step loop</b> · '+escapeHtml(summary)+'</span></div>'+
+          '<div class="loopbody"><div class="loopchain-v">'+steps+
+            '<div class="loopback"><span class="ic">↺</span>loops back to the start</div></div>'+
+            '<button class="loopbtn" data-i="'+i+'" style="margin-top:10px">Show on map</button></div>'+
+        '</div>';
+      }).join('')+'</div>';
   }
 
   // ── origins (the anti-groupthink read) ──
@@ -1741,6 +1788,7 @@ function renderPatterns(){
   }
 
   el.innerHTML = html;
+  $$("#patternsBody .loophead").forEach(h=> h.onclick=()=> h.parentElement.classList.toggle("open"));
   $$("#patternsBody .loopbtn").forEach(b=> b.onclick=()=> showLoop(loops[+b.dataset.i].map(nd=>nd.id)));
 }
 
