@@ -25,8 +25,10 @@
     --lineSoft:#1A1E24; --text:#E8E6E0; --dim:#9A9892; --faint:#5E5C57;
     --accent:#C9A86A; --accentDim:#7A6843;
     --thought:#7F8FB5; --emotion:#B57F9A; --behavior:#7FB59A;
-    --sans:"Segoe UI","Helvetica Neue",Helvetica,Arial,sans-serif;
-    --serif:Georgia,"Times New Roman",serif;
+    /* Each platform's nicest built-in fonts — no downloads, no external requests, stays private.
+       Apple: San Francisco + New York · Windows 11: Segoe UI Variable · graceful fallbacks. */
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI",system-ui,ui-sans-serif,"Helvetica Neue",Arial,sans-serif;
+    --serif:ui-serif,"New York",Georgia,"Times New Roman",serif;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
@@ -34,6 +36,7 @@
     margin:0; background:var(--bg); color:var(--text); font-family:var(--sans);
     -webkit-font-smoothing:antialiased; overflow:hidden;
     -webkit-tap-highlight-color:transparent;
+    text-rendering:optimizeLegibility; font-optical-sizing:auto;
   }
   button{font-family:var(--sans)}
   ::-webkit-scrollbar{width:10px;height:10px}
@@ -119,6 +122,9 @@
     text-shadow:0 1px 4px rgba(0,0,0,.85);pointer-events:none;white-space:normal}
   .node.sel .lbl{color:var(--text);font-weight:500}
   .node.dim{opacity:.3}
+  .node.faded{opacity:.12}
+  .node.loopon .dot{border-color:var(--accent) !important;box-shadow:0 0 0 4px rgba(201,168,106,.25),0 0 18px rgba(201,168,106,.4) !important}
+  .node.loopon .lbl{color:var(--text)}
   .node.linksrc .dot{border-color:var(--accent) !important;
     box-shadow:0 0 0 4px rgba(201,168,106,.28),0 0 18px rgba(201,168,106,.35) !important}
 
@@ -189,6 +195,12 @@
   .pkey span{display:flex;align-items:center;gap:6px}
   .pkey i{width:9px;height:9px;border-radius:2px;display:inline-block;flex:none}
   .pobs{font-size:13.5px;color:#C8C6C0;line-height:1.65;margin:0}
+  .loop{border-top:1px solid var(--lineSoft);padding:12px 0}
+  .loop:first-of-type{border-top:none;padding-top:2px}
+  .loopchain{font-size:13.5px;line-height:1.9;color:var(--text);margin-bottom:10px}
+  .loopchain .arw{color:var(--faint);margin:0 3px}
+  .loopbtn{background:transparent;border:1px solid var(--accentDim);color:var(--accent);border-radius:14px;padding:5px 13px;font-size:12px;cursor:pointer}
+  .loopbtn:hover{background:var(--accentDim);color:var(--bg)}
   .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin:2px 0 16px}
   .seg button{background:transparent;color:var(--dim);border:none;padding:8px 18px;font-size:12.5px;cursor:pointer;letter-spacing:.02em}
   .seg button.on{background:var(--raised);color:var(--text)}
@@ -634,6 +646,7 @@ function loadSettings(){ try{ const r=localStorage.getItem(SKEY); if(r) return O
 function saveSettings(){ try{ localStorage.setItem(SKEY, JSON.stringify(settings)); _saveErr=false; }catch(e){ notifySaveFail(); } }
 
 let selected = null, linkFrom = null, dragId = null, lensOn = false;
+let highlight = null;   // Set of node ids to spotlight (loop view), or null
 let sparkHint = null, currentSpark = "";
 let filter = { thought:true, emotion:true, behavior:true };
 let draft = { kind:"thought", origin:"unsure" };
@@ -668,8 +681,8 @@ let view = { scale:1, panX:0, panY:0 };
 function applyView(){ canvas.style.transform = "translate("+view.panX+"px,"+view.panY+"px) scale("+view.scale+")"; }
 function clamp(v,a,b){ return Math.min(b, Math.max(a, v)); }
 // Frame all of the current map's nodes so they sit centered and fully in view.
-function fitView(){
-  const d=dims(), w=worldSize(), ns=visibleNodes();
+function fitView(list){
+  const d=dims(), w=worldSize(), ns=(list&&list.length)?list:visibleNodes();
   if(ns.length===0){ view={ scale:1, panX:-(w.w-d.w)/2, panY:-(w.h-d.h)/2 }; applyView(); return; }
   let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
   ns.forEach(n=>{ const p=px(n); minx=Math.min(minx,p.x); miny=Math.min(miny,p.y); maxx=Math.max(maxx,p.x); maxy=Math.max(maxy,p.y); });
@@ -753,6 +766,7 @@ function renderGraph(){
     el.className = "node" + (n.id===selected?" sel":"") + (n.id===cId?" centre":"") + (n.id===linkFrom?" linksrc":"");
     const dimIt = lensOn && n.origin!=="borrowed";
     if(dimIt) el.classList.add("dim");
+    if(highlight){ el.classList.add(highlight.has(n.id) ? "loopon" : "faded"); }
     el.style.left = p.x+"px"; el.style.top = p.y+"px";
     el.dataset.id = n.id;
 
@@ -785,8 +799,12 @@ function drawLinks(){
     if(!na||!nb) return;
     const pa=px(na), pb=px(nb);
     const active = selected && (a===selected||b===selected);
-    s += '<line x1="'+pa.x+'" y1="'+pa.y+'" x2="'+pb.x+'" y2="'+pb.y+'" stroke="'+
-         (active?"#C9A86A":"#2A2F37")+'" stroke-width="'+(active?1.6:1)+'" stroke-opacity="'+(active?.9:.55)+'"/>';
+    const inLoop = highlight && highlight.has(a) && highlight.has(b);
+    let stroke="#2A2F37", sw=1, so=.55;
+    if(inLoop){ stroke="#C9A86A"; sw=2; so=.95; }
+    else if(highlight){ so=.1; }
+    else if(active){ stroke="#C9A86A"; sw=1.6; so=.9; }
+    s += '<line x1="'+pa.x+'" y1="'+pa.y+'" x2="'+pb.x+'" y2="'+pb.y+'" stroke="'+stroke+'" stroke-width="'+sw+'" stroke-opacity="'+so+'"/>';
   });
   svg.innerHTML = s;
 }
@@ -851,7 +869,7 @@ window.addEventListener("pointermove", e=>{
   view.panX=pan.px+dx; view.panY=pan.py+dy; applyView();
 });
 window.addEventListener("pointerup", ()=>{
-  if(pan){ if(!pan.moved && !linkFrom){ selected=null; renderGraph(); } pan=null; }
+  if(pan){ if(!pan.moved && !linkFrom){ selected=null; highlight=null; renderGraph(); } pan=null; }
 });
 
 // Wheel to zoom toward the cursor; buttons zoom toward the centre.
@@ -1571,6 +1589,47 @@ function renderLenses(){
    ═══════════════════════════════════════════════════════════════════════ */
 let patternsMode = "now";   // "now" = this map · "time" = journey over time
 let journeyRange = "month"; // week · month · year · all
+// Find feedback loops (cycles) in the user's OWN connections. Uses a spanning
+// tree + fundamental-cycle basis (bounded and meaningful), surfacing the tightest few.
+function findLoops(){
+  const nodes=S.nodes, N=nodes.length, id2i={};
+  nodes.forEach((n,i)=> id2i[n.id]=i);
+  const adj=Array.from({length:N},()=>[]);
+  const norm=(a,b)=> a<b ? a+"|"+b : b+"|"+a;
+  const edges=new Set();
+  S.links.forEach(([a,b])=>{ const ia=id2i[a], ib=id2i[b]; if(ia==null||ib==null||ia===ib) return; const key=norm(ia,ib); if(edges.has(key)) return; edges.add(key); adj[ia].push(ib); adj[ib].push(ia); });
+  const parent=new Array(N).fill(-1), depth=new Array(N).fill(-1), tree=new Set();
+  for(let s=0;s<N;s++){
+    if(depth[s]!==-1) continue;
+    depth[s]=0; const q=[s];
+    while(q.length){ const u=q.shift();
+      for(const v of adj[u]){ if(depth[v]===-1){ depth[v]=depth[u]+1; parent[v]=u; tree.add(norm(u,v)); q.push(v); } }
+    }
+  }
+  const loops=[], seen=new Set();
+  edges.forEach(key=>{
+    if(tree.has(key)) return;                         // only non-tree edges close a cycle
+    const [a,b]=key.split("|").map(Number);
+    const pathA=[]; let x=a; while(x!==-1){ pathA.push(x); x=parent[x]; }
+    const setA=new Set(pathA);
+    const pathB=[]; let y=b; while(y!==-1 && !setA.has(y)){ pathB.push(y); y=parent[y]; }
+    const lca=y;
+    const cyc=[]; for(const nd of pathA){ cyc.push(nd); if(nd===lca) break; }
+    for(let i=pathB.length-1;i>=0;i--) cyc.push(pathB[i]);
+    if(cyc.length<3) return;
+    const sig=[...cyc].sort((p,q)=>p-q).join(","); if(seen.has(sig)) return; seen.add(sig);
+    loops.push(cyc.map(i=> nodes[i]));
+  });
+  loops.sort((p,q)=> p.length - q.length);            // tightest loops first
+  return loops.slice(0,3);
+}
+function showLoop(ids){
+  highlight = new Set(ids);
+  gotoView("map");
+  setTimeout(()=>{ renderGraph(); fitView(S.nodes.filter(n=>highlight.has(n.id))); }, 60);
+  toast("Loop highlighted — tap empty space to clear.");
+}
+
 function renderPatterns(){
   $$('#patternsSeg button').forEach(b=> b.classList.toggle('on', b.dataset.mode===patternsMode));
   if(patternsMode==="time"){
@@ -1613,6 +1672,18 @@ function renderPatterns(){
       '<div style="display:flex;align-items:center;gap:10px"><span style="color:'+k.color+';font-size:16px">'+k.icon+'</span>'+
       '<span class="big">'+escapeHtml(centre.label)+'</span></div>'+
       '<p class="pobs" style="margin-top:10px">More of your map connects to this than to anything else ('+deg[cId]+' link'+(deg[cId]===1?'':'s')+'). That doesn\'t make it the cause of anything — only the place where your lines cross. Worth sitting with.</p></div>';
+  }
+
+  // ── loops (feedback cycles hidden in their own connections) ──
+  const loops = findLoops();
+  if(loops.length){
+    html += '<div class="pcard"><div class="lbl">Loops your week keeps circling</div>'+
+      '<p class="pobs" style="margin-bottom:14px">These are cycles in the connections <i>you</i> drew — each part feeds the next and returns to the start. Loops run on their own until something interrupts them. Which link could you break?</p>'+
+      loops.map((loop,i)=>
+        '<div class="loop"><div class="loopchain">'+
+        loop.map(nd=>'<span style="color:'+KINDS[nd.kind].color+'">'+KINDS[nd.kind].icon+'</span> '+escapeHtml(nd.label)).join(' <span class="arw">→</span> ')+
+        ' <span class="arw">↺</span></div><button class="loopbtn" data-i="'+i+'">Show on map</button></div>'
+      ).join('')+'</div>';
   }
 
   // ── origins (the anti-groupthink read) ──
@@ -1670,6 +1741,7 @@ function renderPatterns(){
   }
 
   el.innerHTML = html;
+  $$("#patternsBody .loopbtn").forEach(b=> b.onclick=()=> showLoop(loops[+b.dataset.i].map(nd=>nd.id)));
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
